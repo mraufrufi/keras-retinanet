@@ -15,6 +15,7 @@ import sys
 import os.path
 
 #Cropping on the fly
+from rasterio.tools.mask import mask
 import rasterio
 
 def _read_classes(csv_data_file):
@@ -23,6 +24,9 @@ def _read_classes(csv_data_file):
     
     # Read in data csv
     data=pd.read_csv(csv_data_file,index_col=0)
+    
+    #Modify indices, which came from R, zero indexed in python
+    data=data.set_index(data.index.values-1)
     
     #Get unique classes
     uclasses=data.loc[:,['label','numeric_label']].drop_duplicates()
@@ -95,7 +99,7 @@ class CSVGenerator(generator.Generator):
             self.labels[value] = key        
 
         ####TO DO !!! Change hardcoded tile to read .config.yml
-        self.rgb_tile_dir="/Users/ben/Documents/TreeSegmentation/data/2017/Lidar"
+        self.rgb_tile_dir="/Users/ben/Documents/TreeSegmentation/data/2017/RGB/"
         
         #Read image data
         self.image_data=_read_annotations(csv_data_file)
@@ -137,8 +141,13 @@ class CSVGenerator(generator.Generator):
         row=self.image_data[image_index]
         
         #Crop cluster
+        
+        #generate polygon
+        #create polygon from bounding box
+        features=data2geojson(row)
+        
         #crop and return image
-        with rasterio.open(self.rgb_tile_dir + row.rgb_path) as src:
+        with rasterio.open(self.rgb_tile_dir + row['rgb_path']) as src:
             out_image, out_transform = mask(src, [features], crop=True)
             
         #color channel should be last, tensorflow convention?
@@ -155,11 +164,11 @@ class CSVGenerator(generator.Generator):
         boxes  = np.zeros((len(annots), 5))
 
         for idx, annot in enumerate(annots):
-            class_name = annot['class']
-            boxes[idx, 0] = float(annot['x1'])
-            boxes[idx, 1] = float(annot['y1'])
-            boxes[idx, 2] = float(annot['x2'])
-            boxes[idx, 3] = float(annot['y2'])
+            class_name = annot['label']
+            boxes[idx, 0] = float(annot['xmin'])
+            boxes[idx, 1] = float(annot['ymin'])
+            boxes[idx, 2] = float(annot['xmax'])
+            boxes[idx, 3] = float(annot['ymax'])
             boxes[idx, 4] = self.name_to_label(class_name)
 
         return boxes
