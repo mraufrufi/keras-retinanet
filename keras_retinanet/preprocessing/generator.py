@@ -40,7 +40,7 @@ class Generator(object):
         self,
         transform_generator = None,
         batch_size=1,
-        group_method='ratio',  # one of 'none', 'random', 'ratio'
+        group_method='random',  # one of 'none', 'random', 'ratio'
         shuffle_groups=True,
         image_min_side=800,
         image_max_side=1333,
@@ -131,7 +131,8 @@ class Generator(object):
             )[0]
 
             # delete invalid indices
-            if len(invalid_indices):
+            if len(invalid_indices):  
+                print("I'm alive!!")
                 warnings.warn('Image with id {} (shape {}) contains the following invalid boxes: {}.'.format(
                     group[index],
                     image.shape,
