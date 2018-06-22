@@ -27,6 +27,10 @@ import keras.preprocessing.image
 from keras.utils import multi_gpu_model
 import tensorflow as tf
 
+#Log experiment
+#set experiment and log configs
+experiment = Experiment(api_key="ypQZhYfs3nSyKzOfz13iuJpj2",project_name='retinanet')
+
 # Allow relative imports when being executed as script.
 if __name__ == "__main__" and __package__ is None:
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
