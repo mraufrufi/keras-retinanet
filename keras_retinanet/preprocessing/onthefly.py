@@ -47,8 +47,8 @@ def _read_classes(csv_data_file):
     return(classes)
 
 
-def _read_annotations(csv_data_file):
-    """ Read annotations from the csv_reader.
+def _read_annotations(csv_data_file,res):
+    """ Read annotations from the csv_reader. Rescale origin by the resolution to get box coordinates with respect to cluster.
     """
     
     data=pd.read_csv(csv_data_file,index_col=0)    
@@ -60,11 +60,11 @@ def _read_annotations(csv_data_file):
     data.Cluster=data.Cluster-1
     
     ##Create bounding coordinates with respect to the crop for each box
-    for box in data.iterrows():
-        box['origin_xmin']=box['xmin']-box['cluster_xmin']
-        box['origin_xmax']=box['cluster_xmax']-box['xmax']
-        box['origin_ymin']=box['ymax']-box['cluster_ymax']
-        box['origin_ymax']=(box['cluster_ymax']-box['cluster_ymin'])-box['ymin']    
+    #Rescaled to resolution of the cells.Also note that python and R have inverse coordinate Y axis, flipped rotation.
+    data['origin_xmin']=(data['xmin']-data['cluster_xmin'])/res
+    data['origin_xmax']=(data['xmin']-data['cluster_xmin']+ data['xmax']-data['xmin'])/res
+    data['origin_ymin']=(data['cluster_ymax']-data['ymax'])/res
+    data['origin_ymax']= (data['cluster_ymax']-data['ymax']+ data['ymax'] - data['ymin'])/res  
     
     result={}
     
@@ -123,24 +123,27 @@ class CSVGenerator(generator.Generator):
             self.base_dir = os.path.dirname(csv_data_file)
             
         #Read classes
-        self.classes=_read_classes(csv_data_file)
+        self.classes=_read_classes(csv_data_file)  
         
         #Create label dict
         self.labels = {}
         for key, value in self.classes.items():
             self.labels[value] = key        
 
-        ####TO DO !!! Change hardcoded tile to read .config.yml
-        self.rgb_tile_dir="/Users/ben/Documents/TreeSegmentation/data/2017/RGB/"
+        ####TO DO !!! Change hardcoded tile and res to read .config.yml
+        self.rgb_tile_dir="/Users/ben/Documents/TreeSegmentation/data/2017/Camera/"
+        self.rgb_res=0.1
         
         #Read image data
-        self.image_data=_read_annotations(csv_data_file)
+        self.image_data=_read_annotations(csv_data_file,self.rgb_res)
 
         self.image_names = list(self.image_data.keys())
 
         super(CSVGenerator, self).__init__(**kwargs)
           
-    def show(self,image,image_index,boxes):
+    def show(self,image,image_index):
+        
+        #Show bounding boxes on cropped image
         
         fig,ax = pyplot.subplots(1)
         ax.imshow(np.asarray(image))
@@ -149,9 +152,9 @@ class CSVGenerator(generator.Generator):
             bottom_left=(box['origin_xmin'],box['origin_ymin'])
             height=box['origin_ymax']-box['origin_ymin']
             width=box['origin_xmax']-box['origin_xmin']
-            rect = patches.Rectangle(bottom_left,height,width,linewidth=1,edgecolor='r',facecolor='none')
+            rect = patches.Rectangle(bottom_left,width,height,linewidth=1,edgecolor='r',facecolor='none')
             ax.add_patch(rect)
-        
+        pyplot.show()
         
     def size(self):
         """ Size of the dataset.
@@ -200,7 +203,10 @@ class CSVGenerator(generator.Generator):
         out_image=np.moveaxis(out_image, 0, -1)     
         
         #scale to 0-255
-        out_image=out_image/1000
+        out_image=out_image/255
+        
+        #view image if needed on debug
+        #self.show(out_image, image_index)
         
         #TODO is the BGR or RGB? see read_image_bgr in util
         return out_image
@@ -215,10 +221,10 @@ class CSVGenerator(generator.Generator):
 
         for idx, annot in enumerate(annots):
             class_name = annot['label']
-            boxes[idx, 0] = float(annot['xmin'])
-            boxes[idx, 1] = float(annot['ymin'])
-            boxes[idx, 2] = float(annot['xmax'])
-            boxes[idx, 3] = float(annot['ymax'])
+            boxes[idx, 0] = float(annot['origin_xmin'])
+            boxes[idx, 1] = float(annot['origin_ymin'])
+            boxes[idx, 2] = float(annot['origin_xmax'])
+            boxes[idx, 3] = float(annot['origin_ymax'])
             boxes[idx, 4] = self.name_to_label(class_name)
 
         return boxes
