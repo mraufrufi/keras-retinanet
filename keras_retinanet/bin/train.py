@@ -40,15 +40,11 @@ from .. import models
 from ..callbacks import RedirectModel
 from ..callbacks.eval import Evaluate
 from ..models.retinanet import retinanet_bbox
-from ..preprocessing.csv_generator import CSVGenerator
-from ..preprocessing.kitti import KittiGenerator
-from ..preprocessing.open_images import OpenImagesGenerator
-from ..preprocessing.pascal_voc import PascalVocGenerator
 from ..utils.anchors import make_shapes_callback, anchor_targets_bbox
 from ..utils.keras_version import check_keras_version
 from ..utils.model import freeze as freeze_model
 from ..utils.transform import random_transform_generator
-
+from ..preprocessing.onthefly import OnTheFlyGenerator
 
 def makedirs(path):
     # Intended behavior: try to create the directory,
@@ -217,44 +213,7 @@ def create_generators(args):
     else:
         transform_generator = random_transform_generator(flip_x_chance=0.5)
 
-    if args.dataset_type == 'coco':
-        # import here to prevent unnecessary dependency on cocoapi
-        from ..preprocessing.coco import CocoGenerator
-
-        train_generator = CocoGenerator(
-            args.coco_path,
-            'train2017',
-            transform_generator=transform_generator,
-            batch_size=args.batch_size,
-            image_min_side=args.image_min_side,
-            image_max_side=args.image_max_side
-        )
-
-        validation_generator = CocoGenerator(
-            args.coco_path,
-            'val2017',
-            batch_size=args.batch_size,
-            image_min_side=args.image_min_side,
-            image_max_side=args.image_max_side
-        )
-    elif args.dataset_type == 'pascal':
-        train_generator = PascalVocGenerator(
-            args.pascal_path,
-            'trainval',
-            transform_generator=transform_generator,
-            batch_size=args.batch_size,
-            image_min_side=args.image_min_side,
-            image_max_side=args.image_max_side
-        )
-
-        validation_generator = PascalVocGenerator(
-            args.pascal_path,
-            'test',
-            batch_size=args.batch_size,
-            image_min_side=args.image_min_side,
-            image_max_side=args.image_max_side
-        )
-    elif args.dataset_type == 'csv':
+    if args.dataset_type == 'csv':
         train_generator = CSVGenerator(
             args.annotations,
             args.classes,
@@ -274,48 +233,19 @@ def create_generators(args):
             )
         else:
             validation_generator = None
-    elif args.dataset_type == 'oid':
-        train_generator = OpenImagesGenerator(
-            args.main_dir,
-            subset='train',
-            version=args.version,
-            labels_filter=args.labels_filter,
-            annotation_cache_dir=args.annotation_cache_dir,
-            fixed_labels=args.fixed_labels,
-            transform_generator=transform_generator,
-            batch_size=args.batch_size,
-            image_min_side=args.image_min_side,
-            image_max_side=args.image_max_side
-        )
 
-        validation_generator = OpenImagesGenerator(
-            args.main_dir,
-            subset='validation',
-            version=args.version,
-            labels_filter=args.labels_filter,
-            annotation_cache_dir=args.annotation_cache_dir,
-            fixed_labels=args.fixed_labels,
+    elif args.dataset_type == 'onthefly':
+        train_generator = OnTheFlyGenerator(
+            args.annotations,
             batch_size=args.batch_size,
-            image_min_side=args.image_min_side,
-            image_max_side=args.image_max_side
         )
-    elif args.dataset_type == 'kitti':
-        train_generator = KittiGenerator(
-            args.kitti_path,
-            subset='train',
-            transform_generator=transform_generator,
+        if args.val_annotations:
+            validation_generaton=OnTheFlyGenerator(
+            args.val_annotations,
             batch_size=args.batch_size,
-            image_min_side=args.image_min_side,
-            image_max_side=args.image_max_side
         )
-
-        validation_generator = KittiGenerator(
-            args.kitti_path,
-            subset='val',
-            batch_size=args.batch_size,
-            image_min_side=args.image_min_side,
-            image_max_side=args.image_max_side
-        )
+        else:
+            validation_generator=None
     else:
         raise ValueError('Invalid data type received: {}'.format(args.dataset_type))
 
@@ -360,14 +290,6 @@ def parse_args(args):
     subparsers = parser.add_subparsers(help='Arguments for specific dataset types.', dest='dataset_type')
     subparsers.required = True
 
-    coco_parser = subparsers.add_parser('coco')
-    coco_parser.add_argument('coco_path', help='Path to dataset directory (ie. /tmp/COCO).')
-
-    pascal_parser = subparsers.add_parser('pascal')
-    pascal_parser.add_argument('pascal_path', help='Path to dataset directory (ie. /tmp/VOCdevkit).')
-
-    kitti_parser = subparsers.add_parser('kitti')
-    kitti_parser.add_argument('kitti_path', help='Path to dataset directory (ie. /tmp/kitti).')
 
     def csv_list(string):
         return string.split(',')
@@ -379,6 +301,11 @@ def parse_args(args):
     oid_parser.add_argument('--annotation-cache-dir', help='Path to store annotation cache.', default='.')
     oid_parser.add_argument('--fixed-labels', help='Use the exact specified labels.', default=False)
 
+    #On the fly parser
+    csv_parser = subparsers.add_parser('onthefly')
+    csv_parser.add_argument('annotations', help='Path to CSV file containing annotations for training.')
+    csv_parser.add_argument('--val-annotations', help='Path to CSV file containing annotations for validation (optional).')
+    
     csv_parser = subparsers.add_parser('csv')
     csv_parser.add_argument('annotations', help='Path to CSV file containing annotations for training.')
     csv_parser.add_argument('classes', help='Path to a CSV file containing class label mapping.')

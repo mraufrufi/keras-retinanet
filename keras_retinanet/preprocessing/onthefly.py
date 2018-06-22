@@ -20,8 +20,6 @@ import rasterio
 from matplotlib import pyplot 
 import matplotlib.patches as patches
 
-import warnings
-warnings.filterwarnings("error")
 
 def _read_classes(csv_data_file):
     """ Parse the classes file given by csv_reader.
@@ -95,7 +93,7 @@ def data2geojson(row):
     
     return features
 
-class CSVGenerator(generator.Generator):
+class OnTheFlyGenerator(generator.Generator):
     """ Generate data for a custom CSV dataset.
 
     See https://github.com/fizyr/keras-retinanet#csv-datasets for more information.
@@ -139,7 +137,7 @@ class CSVGenerator(generator.Generator):
 
         self.image_names = list(self.image_data.keys())
 
-        super(CSVGenerator, self).__init__(**kwargs)
+        super(OnTheFlyGenerator, self).__init__(**kwargs)
           
     def show(self,image,image_index):
         
@@ -206,7 +204,7 @@ class CSVGenerator(generator.Generator):
         out_image=out_image/255
         
         #view image if needed on debug
-        #self.show(out_image, image_index)
+        self.show(out_image, image_index)
         
         #TODO is the BGR or RGB? see read_image_bgr in util
         return out_image
@@ -232,6 +230,6 @@ class CSVGenerator(generator.Generator):
 if __name__=="__main__":
     
     path="/Users/ben/Documents/DeepForest/data/detection_OSBS_006.csv"
-    training_generator=CSVGenerator(csv_data_file=path,group_method="random")
+    training_generator=OnTheFlyGenerator(csv_data_file=path,group_method="random")
     boxes=training_generator.next()
     print(boxes)
