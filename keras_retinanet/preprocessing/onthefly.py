@@ -17,8 +17,10 @@ import os.path
 #Cropping on the fly
 from rasterio.mask import mask
 import rasterio
-from matplotlib import pyplot 
-import matplotlib.patches as patches
+
+#TODO fix dependency error on hypergator
+#from matplotlib import pyplot 
+#import matplotlib.patches as patches
 
 
 def _read_classes(csv_data_file):
