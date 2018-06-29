@@ -102,6 +102,7 @@ class OnTheFlyGenerator(generator.Generator):
     def __init__(
         self,
         csv_data_file,
+        config,
         base_dir=None,
         **kwargs
     ):
@@ -115,7 +116,10 @@ class OnTheFlyGenerator(generator.Generator):
         self.image_names = []
         self.image_data  = {}
         self.base_dir    = base_dir
-
+        
+        #debug - plot images, based on config fiile
+        self.plot_image=config['plot_image']
+        
         # Take base_dir from annotations file if not explicitly specified.
         if self.base_dir is None:
             self.base_dir = os.path.dirname(csv_data_file)
@@ -128,9 +132,8 @@ class OnTheFlyGenerator(generator.Generator):
         for key, value in self.classes.items():
             self.labels[value] = key        
 
-        ####TO DO !!! Change hardcoded tile and res to read .config.yml
-        self.rgb_tile_dir="/Users/ben/Documents/TreeSegmentation/data/2017/Camera/"
-        self.rgb_res=0.1
+        self.rgb_tile_dir=config['rgb_tile_dir']
+        self.rgb_res=config['rgb_res']
         
         #Read image data
         self.image_data=_read_annotations(csv_data_file,self.rgb_res)
@@ -204,7 +207,8 @@ class OnTheFlyGenerator(generator.Generator):
         out_image=out_image/255
         
         #view image if needed on debug
-        self.show(out_image, image_index)
+        if self.plot_image:
+            self.show(out_image, image_index)
         
         #TODO is the BGR or RGB? see read_image_bgr in util
         return out_image
@@ -228,8 +232,15 @@ class OnTheFlyGenerator(generator.Generator):
         return boxes
 
 if __name__=="__main__":
+    #construct a config
+    config={}
+    config['rgb_tile_dir']="/Users/ben/Documents/DeepForest/data/"
+    config['rgb_res']=0.1
+    config['plot_image']=True
+    #path="/Users/ben/Documents/DeepForest/data/detection_OSBS_006.csv"
+    path="/Users/ben/Documents/DeepForest/data/tmp/detection.csv"
+    training_generator=OnTheFlyGenerator(csv_data_file=path,group_method="random",config=config)
     
-    path="/Users/ben/Documents/DeepForest/data/detection_OSBS_006.csv"
-    training_generator=OnTheFlyGenerator(csv_data_file=path,group_method="random")
-    boxes=training_generator.next()
-    print(boxes)
+    for x in np.arange(10):
+        boxes=training_generator.next()
+        print(boxes)

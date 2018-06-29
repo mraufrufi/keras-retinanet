@@ -132,7 +132,9 @@ class Generator(object):
 
             # delete invalid indices
             if len(invalid_indices):  
-                print("I'm alive!!")
+                import warnings
+                warnings.filterwarnings("error")
+                
                 warnings.warn('Image with id {} (shape {}) contains the following invalid boxes: {}.'.format(
                     group[index],
                     image.shape,
