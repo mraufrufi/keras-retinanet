@@ -35,6 +35,7 @@ def _read_classes(csv_data_file):
     
     #Modify Cluster indices, they start at 1 from R.
     data.Cluster=data.Cluster-1    
+    data.numeric_label=data.numeric_label-1
     
     #Get unique classes
     uclasses=data.loc[:,['label','numeric_label']].drop_duplicates()
@@ -206,6 +207,9 @@ class OnTheFlyGenerator(generator.Generator):
             
         #color channel should be last, tensorflow convention?
         out_image=np.moveaxis(out_image, 0, -1)     
+        
+        #BGR order
+        out_image=out_image[:,:,::-1]
         
         #scale to 0-255
         out_image=out_image/255

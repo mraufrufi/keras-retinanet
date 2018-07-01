@@ -20,7 +20,7 @@ import numpy as np
 from .colors import label_color
 
 
-def draw_box(image, box, color, thickness=2):
+def draw_box(image, box, color, thickness=1):
     """ Draws a box on an image with a given color.
 
     # Arguments
@@ -42,11 +42,11 @@ def draw_caption(image, box, caption):
         caption : String containing the text to draw.
     """
     b = np.array(box).astype(int)
-    cv2.putText(image, caption, (b[0], b[1] - 10), cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 0), 2)
+    cv2.putText(image, caption, (b[0], b[1] - 10), cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 0), 1)
     cv2.putText(image, caption, (b[0], b[1] - 10), cv2.FONT_HERSHEY_PLAIN, 1, (255, 255, 255), 1)
 
 
-def draw_boxes(image, boxes, color, thickness=2):
+def draw_boxes(image, boxes, color, thickness=1):
     """ Draws boxes on an image with a given color.
 
     # Arguments
@@ -59,7 +59,7 @@ def draw_boxes(image, boxes, color, thickness=2):
         draw_box(image, b, color, thickness=thickness)
 
 
-def draw_detections(image, boxes, scores, labels, color=None, label_to_name=None, score_threshold=0.5):
+def draw_detections(image, boxes, scores, labels, color=(255,165,0), label_to_name=None, score_threshold=0.75):
     """ Draws detections in an image.
 
     # Arguments
