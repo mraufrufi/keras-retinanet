@@ -70,6 +70,11 @@ def create_generator(args):
             image_min_side=args.image_min_side,
             image_max_side=args.image_max_side
         )
+    elif    args.dataset_type == 'onthefly':
+            train_generator = onthefly.OnTheFlyGenerator(
+                    args.annotations,
+                    batch_size=args.batch_size,
+                    config=config)        
     else:
         raise ValueError('Invalid data type received: {}'.format(args.dataset_type))
 

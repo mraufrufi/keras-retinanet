@@ -59,6 +59,8 @@ def _read_annotations(csv_data_file,res):
     #Modify Cluster indices, they start at 1 from R.
     data.Cluster=data.Cluster-1
     
+    data.numeric_label=data.numeric_label-1
+    
     ##Create bounding coordinates with respect to the crop for each box
     #Rescaled to resolution of the cells.Also note that python and R have inverse coordinate Y axis, flipped rotation.
     data['origin_xmin']=(data['xmin']-data['cluster_xmin'])/res
