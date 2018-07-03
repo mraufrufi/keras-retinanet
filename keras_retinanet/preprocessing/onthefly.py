@@ -140,7 +140,7 @@ class OnTheFlyGenerator(generator.Generator):
         for key, value in self.classes.items():
             self.labels[value] = key        
 
-        self.rgb_tile_dir=config['rgb_tile_dir']
+        self.rgb_tile_dir=base_dir
         self.rgb_res=config['rgb_res']
         
         #Read image data
