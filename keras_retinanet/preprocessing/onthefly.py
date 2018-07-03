@@ -19,8 +19,8 @@ from rasterio.mask import mask
 import rasterio
 
 #TODO fix dependency error on hypergator
-#from matplotlib import pyplot 
-#import matplotlib.patches as patches
+from matplotlib import pyplot 
+import matplotlib.patches as patches
 
 
 def _read_classes(csv_data_file):
@@ -62,6 +62,9 @@ def _read_annotations(csv_data_file,res):
     
     data.numeric_label=data.numeric_label-1
     
+    #Create a joint key as a combination of the cluster and the image path
+    data["image"]=data.rgb_path+"_"+data.Cluster.astype("str")
+    
     ##Create bounding coordinates with respect to the crop for each box
     #Rescaled to resolution of the cells.Also note that python and R have inverse coordinate Y axis, flipped rotation.
     data['origin_xmin']=(data['xmin']-data['cluster_xmin'])/res
@@ -74,11 +77,11 @@ def _read_annotations(csv_data_file,res):
     for index,row in data.iterrows():
         
         #check if new cluster
-        if row["Cluster"] not in result:
-            result[row["Cluster"]] = []
+        if row["image"] not in result:
+            result[row["image"]] = []
         
         #append annotations
-        result[row["Cluster"]].append(row.to_dict())
+        result[row["image"]].append(row.to_dict())
         
     return(result)
 
@@ -147,13 +150,16 @@ class OnTheFlyGenerator(generator.Generator):
 
         super(OnTheFlyGenerator, self).__init__(**kwargs)
           
-    def show(self,image,image_index):
+    def show(self,image,image_name):
         
         #Show bounding boxes on cropped image
+        #matplotlib is rgb order.
+        image=image[:,:,::-1]
         
         fig,ax = pyplot.subplots(1)
         ax.imshow(np.asarray(image))
-        rows=self.image_data[image_index]
+        rows=self.image_data[image_name]
+        
         for box in rows:            
             bottom_left=(box['origin_xmin'],box['origin_ymin'])
             height=box['origin_ymax']-box['origin_ymin']
@@ -193,7 +199,10 @@ class OnTheFlyGenerator(generator.Generator):
         """ Load an image at the image_index.
         
         """
-        row=self.image_data[image_index]
+        
+        #Select row
+        image_name=self.image_names[image_index]
+        row=self.image_data[image_name]
         
         #Crop cluster, all cluster coordinates the same within a image group
         
@@ -216,9 +225,8 @@ class OnTheFlyGenerator(generator.Generator):
         
         #view image if needed on debug
         if self.plot_image:
-            self.show(out_image, image_index)
+            self.show(out_image, image_name)
         
-        #TODO is the BGR or RGB? see read_image_bgr in util
         return out_image
 
     def load_annotations(self, image_index):
