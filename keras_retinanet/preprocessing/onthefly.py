@@ -48,7 +48,7 @@ def _read_classes(csv_data_file):
     return(classes)
 
 
-def _read_annotations(csv_data_file,base_dir):
+def _read_annotations(csv_data_file,base_dir,config):
     """ Read annotations from the csv_reader. Rescale origin by the resolution to get box coordinates with respect to cluster.
     """
     
@@ -70,11 +70,17 @@ def _read_annotations(csv_data_file,base_dir):
     tile_windows["image"]=list(data.rgb_path.unique())
     tile_windows["windows"]=np.arange(0,len(count_windows))
     
+    #Expand grid
     tile_data=expand_grid(tile_windows)
+    
+    #Optionally subsample data based on config file
+    
+    if not config["subsample"] == "None":
+        tile_data.sample(n=config["subsample"])
+        
     image_dict=tile_data.to_dict("index")
     return(image_dict)
     
-
 def load_csv(csv_data_file,res):
     
     #Read in data
@@ -164,13 +170,11 @@ def fetch_annotations(image,index,annotations):
     window_coords["x2"]=x+w    
     window_coords["y2"]=y+h    
     
-    #Which box overlap
-    #boxes=((tile_annotations.origin_ymin  > window_coords["y1"]) &
-    #    (tile_annotations.origin_ymax  < window_coords["y2"])&
-    #   (tile_annotations.origin_xmin  > window_coords["x1"]) & 
-    #    (tile_annotations.origin_xmax  < window_coords["x2"]))
-    
-    #window_boxes=tile_annotations[boxes]
+    #convert coordinates such that box is shown with respect to crop origin
+    tile_annotations["window_xmin"]=tile_annotations["origin_xmin"]- window_coords["x1"]
+    tile_annotations["window_ymin"]=tile_annotations["origin_ymin"]- window_coords["y1"]
+    tile_annotations["window_xmax"]=tile_annotations["origin_xmax"]- window_coords["x1"]
+    tile_annotations["window_ymax"]=tile_annotations["origin_ymax"]- window_coords["y1"]
     
     overlapping_annotations=[]
     
@@ -194,12 +198,6 @@ def fetch_annotations(image,index,annotations):
             overlapping_annotations.append(row.treeID)
     
     overlapping_boxes=tile_annotations[tile_annotations.treeID.isin(overlapping_annotations)]
-
-    #convert coordinates such that box is shown with respect to crop origin
-    overlapping_boxes["window_xmin"]=overlapping_boxes["origin_xmin"]- window_coords["x1"]
-    overlapping_boxes["window_ymin"]=overlapping_boxes["origin_ymin"]- window_coords["y1"]
-    overlapping_boxes["window_xmax"]=overlapping_boxes["origin_xmax"]- window_coords["x1"]
-    overlapping_boxes["window_ymax"]=overlapping_boxes["origin_ymax"]- window_coords["y1"]
     
     return(overlapping_boxes)    
 
@@ -243,6 +241,9 @@ class OnTheFlyGenerator(generator.Generator):
         self.image_data  = {}
         self.base_dir    = base_dir
         
+        #Store config
+        self.config=config
+        
         #debug - plot images, based on config fiile
         self.plot_image=config['plot_image']
         
@@ -262,7 +263,7 @@ class OnTheFlyGenerator(generator.Generator):
         self.rgb_res=config['rgb_res']
         
         #Read image data
-        self.image_data=_read_annotations(csv_data_file,self.base_dir)
+        self.image_data=_read_annotations(csv_data_file,self.base_dir,self.config)
         self.image_names = list(self.image_data.keys())
         
         #Read corresponding annotations
@@ -356,6 +357,7 @@ if __name__=="__main__":
     config['rgb_tile_dir']="/Users/ben/Documents/DeepForest/data/"
     config['rgb_res']=0.1
     config['plot_image']=True
+    config["subsample"]=100
     #path="/Users/ben/Documents/DeepForest/data/detection_OSBS_006.csv"
     path="/Users/ben/Documents/DeepForest/data/NEON_D03_OSBS_DP1_407000_3291000_classified_point_cloud_laz.csv"
     training_generator=OnTheFlyGenerator(csv_data_file=path,group_method="random",config=config,base_dir=config["rgb_tile_dir"])
