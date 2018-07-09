@@ -54,7 +54,7 @@ def _compute_ap(recall, precision):
     return ap
 
 
-def _get_detections(generator, model, score_threshold=0.05, max_detections=100, save_path=None):
+def _get_detections(generator, model, score_threshold=0.05, max_detections=100, save_path=None,experiment=experiment):
     """ Get the detections from the model using the generator.
 
     The result is a list of lists such that the size is:
@@ -66,6 +66,7 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100, 
         score_threshold : The score confidence threshold to use.
         max_detections  : The maximum number of detections to use per image.
         save_path       : The path to save the images with visualized detections to.
+        experiment    : Comet ML experiment
     # Returns
         A list of lists containing the detections for each image in the generator.
     """
@@ -99,11 +100,10 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100, 
         
         if save_path is not None:
             contig_image=raw_image.copy()
-            contig_image=contig_image*255
             draw_annotations(contig_image, generator.load_annotations(i), label_to_name=generator.label_to_name)
             draw_detections(contig_image, image_boxes, image_scores, image_labels, label_to_name=generator.label_to_name,score_threshold=score_threshold)
-
             cv2.imwrite(os.path.join(save_path, '{}.png'.format(i)), contig_image)
+            experiment.log_image(save_path)
 
         # copy detections to all_detections
         for label in range(generator.num_classes()):
@@ -146,7 +146,8 @@ def evaluate(
     iou_threshold=0.5,
     score_threshold=0.05,
     max_detections=100,
-    save_path=None
+    save_path=None,
+    experiment
 ):
     """ Evaluate a given dataset using a given model.
 
@@ -157,11 +158,12 @@ def evaluate(
         score_threshold : The score confidence threshold to use for detections.
         max_detections  : The maximum number of detections to use per image.
         save_path       : The path to save images with visualized detections to.
+        experiment     : Comet ml experiment to evaluate
     # Returns
         A dict mapping class names to mAP scores.
     """
     # gather all detections and annotations
-    all_detections     = _get_detections(generator, model, score_threshold=score_threshold, max_detections=max_detections, save_path=save_path)
+    all_detections     = _get_detections(generator, model, score_threshold=score_threshold, max_detections=max_detections, save_path=save_path,experiment=experiment)
     all_annotations    = _get_annotations(generator)
     average_precisions = {}
 

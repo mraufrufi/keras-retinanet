@@ -22,7 +22,7 @@ class Evaluate(keras.callbacks.Callback):
     """ Evaluation callback for arbitrary datasets.
     """
 
-    def __init__(self, generator, iou_threshold=0.5, score_threshold=0.05, max_detections=100, save_path=None, tensorboard=None, verbose=1):
+    def __init__(self, generator, iou_threshold=0.5, score_threshold=0.05, max_detections=100, save_path=None, tensorboard=None, verbose=1,experiment):
         """ Evaluate a given dataset using a given model at the end of every epoch during training.
 
         # Arguments
@@ -33,6 +33,7 @@ class Evaluate(keras.callbacks.Callback):
             save_path       : The path to save images with visualized detections to.
             tensorboard     : Instance of keras.callbacks.TensorBoard used to log the mAP value.
             verbose         : Set the verbosity level, by default this is set to 1.
+            Experiment   : Comet ml experiment for online logging
         """
         self.generator       = generator
         self.iou_threshold   = iou_threshold
@@ -54,7 +55,8 @@ class Evaluate(keras.callbacks.Callback):
             iou_threshold=self.iou_threshold,
             score_threshold=self.score_threshold,
             max_detections=self.max_detections,
-            save_path=self.save_path
+            save_path=self.save_path,
+            experiment
         )
 
         # compute per class average precision
