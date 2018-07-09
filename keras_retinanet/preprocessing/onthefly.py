@@ -328,7 +328,7 @@ class OnTheFlyGenerator(generator.Generator):
         image=retrieve_window(self.base_dir+row["image"], row["windows"])
          
         #BGR order
-        image=image[:,:,::-1]
+        image=image[:,:,::-1].copy()
         
         return image
 
@@ -359,8 +359,7 @@ if __name__=="__main__":
     config['rgb_res']=0.1
     config['plot_image']=True
     config["subsample"]=10
-    path="/Users/ben/Documents/DeepForest/data/detection_OSBS_006.csv"
-    #path="/Users/ben/Documents/DeepForest/data/NEON_D03_OSBS_DP1_407000_3291000_classified_point_cloud_laz.csv"
+    path="/Users/ben/Documents/DeepForest/data/NEON_D03_OSBS_DP1_407000_3291000_classified_point_cloud_laz.csv"
     training_generator=OnTheFlyGenerator(csv_data_file=path,group_method="random",config=config,base_dir=config["rgb_tile_dir"])
     
     for x in np.arange(10):

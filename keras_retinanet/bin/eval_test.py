@@ -29,7 +29,6 @@ if __name__ == "__main__" and __package__ is None:
 
 # Change these to absolute imports if you copy this script outside the keras_retinanet package.
 from .. import models
-from ..preprocessing.csv_generator import CSVGenerator
 from ..preprocessing.pascal_voc import PascalVocGenerator
 from ..utils.eval import evaluate
 from ..utils.keras_version import check_keras_version
@@ -41,7 +40,6 @@ def get_session():
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True
     return tf.Session(config=config)
-
 
 def create_generator(args,config):
     """ Create generators for evaluation.
@@ -74,6 +72,7 @@ def create_generator(args,config):
             validation_generator = onthefly.OnTheFlyGenerator(
                     args.annotations,
                     batch_size=args.batch_size,
+                    base_dir=config["rgb_tile_dir"],
                     config=config)        
     else:
         raise ValueError('Invalid data type received: {}'.format(args.dataset_type))
@@ -174,5 +173,5 @@ def main(config,args=None):
 
 if __name__ == '__main__':
     
-    from DeepForest.config import config    
+    from config import config    
     main(config)

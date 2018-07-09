@@ -54,7 +54,7 @@ def _compute_ap(recall, precision):
     return ap
 
 
-def _get_detections(generator, model, score_threshold=0.05, max_detections=100, save_path=None,experiment=experiment):
+def _get_detections(generator, model, score_threshold=0.05, max_detections=100, save_path=None,experiment=None):
     """ Get the detections from the model using the generator.
 
     The result is a list of lists such that the size is:
@@ -74,7 +74,7 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100, 
 
     for i in range(generator.size()):
         raw_image    = generator.load_image(i)
-        image        = generator.preprocess_image(raw_image.copy())
+        image        = generator.preprocess_image(raw_image)
         image, scale = generator.resize_image(image)
 
         # run network
@@ -97,13 +97,13 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100, 
         image_scores     = scores[scores_sort]
         image_labels     = labels[0, indices[scores_sort]]
         image_detections = np.concatenate([image_boxes, np.expand_dims(image_scores, axis=1), np.expand_dims(image_labels, axis=1)], axis=1)
-        
+                        
         if save_path is not None:
-            contig_image=raw_image.copy()
-            draw_annotations(contig_image, generator.load_annotations(i), label_to_name=generator.label_to_name)
-            draw_detections(contig_image, image_boxes, image_scores, image_labels, label_to_name=generator.label_to_name,score_threshold=score_threshold)
-            cv2.imwrite(os.path.join(save_path, '{}.png'.format(i)), contig_image)
-            experiment.log_image(save_path)
+            draw_annotations(raw_image, generator.load_annotations(i), label_to_name=generator.label_to_name)
+            draw_detections(raw_image, image_boxes, image_scores, image_labels, label_to_name=generator.label_to_name,score_threshold=score_threshold)
+            cv2.imwrite(os.path.join(save_path, '{}.png'.format(i)), raw_image)
+            if experiment:              
+                experiment.log_image(os.path.join(save_path, '{}.png'.format(i)))
 
         # copy detections to all_detections
         for label in range(generator.num_classes()):
@@ -147,7 +147,7 @@ def evaluate(
     score_threshold=0.05,
     max_detections=100,
     save_path=None,
-    experiment
+    experiment=None
 ):
     """ Evaluate a given dataset using a given model.
 
@@ -162,6 +162,8 @@ def evaluate(
     # Returns
         A dict mapping class names to mAP scores.
     """
+    
+
     # gather all detections and annotations
     all_detections     = _get_detections(generator, model, score_threshold=score_threshold, max_detections=max_detections, save_path=save_path,experiment=experiment)
     all_annotations    = _get_annotations(generator)
