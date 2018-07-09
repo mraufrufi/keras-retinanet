@@ -360,6 +360,8 @@ if __name__=="__main__":
     config['plot_image']=True
     config["subsample"]=10
     path="/Users/ben/Documents/DeepForest/data/NEON_D03_OSBS_DP1_407000_3291000_classified_point_cloud_laz.csv"
+    
+    np.random.seed(2)
     training_generator=OnTheFlyGenerator(csv_data_file=path,group_method="random",config=config,base_dir=config["rgb_tile_dir"])
     
     for x in np.arange(10):
