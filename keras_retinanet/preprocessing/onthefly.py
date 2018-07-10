@@ -19,69 +19,12 @@ import matplotlib.patches as patches
 import slidingwindow as sw
 import itertools
 
+from lidar_crop import compute_chm
 
 def expand_grid(data_dict):
     rows = itertools.product(*data_dict.values())
     return pd.DataFrame.from_records(rows, columns=data_dict.keys())
-    
-def _read_classes(csv_data_file):
-    """ Parse the classes file given by csv_reader.
-    """
-    
-    # Read in data csv
-    data=pd.read_csv(csv_data_file,index_col=0)
-    
-    #Modify indices, which came from R, zero indexed in python
-    data=data.set_index(data.index.values-1)
-    
-    #Modify numeric indices, they start at 1 from R. 
-    data.numeric_label=data.numeric_label-1
-    
-    #Get unique classes
-    uclasses=data.loc[:,['label','numeric_label']].drop_duplicates()
-    
-    # Define classes 
-    classes = {}
-    for index, row in uclasses.iterrows():
-        classes[row.label] = row.numeric_label
-    
-    return(classes)
 
-
-def _read_annotations(csv_data_file,base_dir,config):
-    """ Read annotations from the csv_reader. Rescale origin by the resolution to get box coordinates with respect to cluster.
-    """
-    
-    #Read in data
-    data=pd.read_csv(csv_data_file,index_col=0)    
-    
-    #Modify indices, which came from R, zero indexed in python
-    data=data.set_index(data.index.values-1)
-    
-    #Remove xmin==xmax
-    data=data[data.xmin!=data.xmax]
-    data=data[data.ymin!=data.ymax]    
-    
-    #Compute sliding windows
-    count_windows=compute_windows(base_dir + data.rgb_path[0], 250, 0.05)
-    
-    #Create dictionary of windows for each image
-    tile_windows={}
-    tile_windows["image"]=list(data.rgb_path.unique())
-    tile_windows["windows"]=np.arange(0,len(count_windows))
-    
-    #Expand grid
-    tile_data=expand_grid(tile_windows)
-    
-    #Optionally subsample data based on config file
-    
-    if not config["subsample"] == "None":
-        
-        tile_data=tile_data.sample(n=config["subsample"])
-        
-    image_dict=tile_data.to_dict("index")
-    return(image_dict)
-    
 def load_csv(csv_data_file,res):
     
     #Read in data
@@ -103,6 +46,106 @@ def load_csv(csv_data_file,res):
     data['origin_ymax']= (data['tile_ymax']-data['ymax']+ data['ymax'] - data['ymin'])/res  
     
     return(data)
+
+#Find window indices
+def compute_windows(image,pixels=250,overlap=0.05):
+    im = Image.open(image)
+    numpy_image = np.array(im)    
+    windows = sw.generate(numpy_image, sw.DimOrder.HeightWidthChannel, pixels,overlap )
+    return(windows)
+
+#Get image from tile and window index
+def retrieve_window(numpy_image,index,windows):
+    crop=numpy_image[windows[index].indices()]
+    return(crop)
+
+def _read_classes(data):
+    """ 
+    """
+    
+    #Get unique classes
+    uclasses=data.loc[:,['label','numeric_label']].drop_duplicates()
+    
+    # Define classes 
+    classes = {}
+    for index, row in uclasses.iterrows():
+        classes[row.label] = row.numeric_label
+    
+    return(classes)
+
+
+def _read_annotations(data,base_dir,windows,config):
+    """ Create list of sliding windows to pass to reader. Named for legacy to match generator class.
+    """
+    
+    #Create dictionary of windows for each image
+    tile_windows={}
+    tile_windows["image"]=list(data.rgb_path.unique())
+    tile_windows["windows"]=np.arange(0,len(windows))
+    
+    #Expand grid
+    tile_data=expand_grid(tile_windows)
+    
+    #Optionally subsample data based on config file
+    
+    if not config["subsample"] == "None":
+        
+        tile_data=tile_data.sample(n=config["subsample"])
+        
+    image_dict=tile_data.to_dict("index")
+    return(image_dict)
+    
+def fetch_annotations(image,index,annotations):
+    
+    #Filter annotations in the selected tile
+    tile_annotations=annotations[annotations["rgb_path"]==image.split("/")[-1]]
+    
+    #Get image crop
+    windows=compute_windows(image)
+    
+    #Find index of crop and create coordinate box
+    x,y,w,h=windows[index].getRect()
+    
+    window_coords={}
+
+    #top left
+    window_coords["x1"]=x
+    window_coords["y1"]=y
+    
+    #Bottom right
+    window_coords["x2"]=x+w    
+    window_coords["y2"]=y+h    
+    
+    #convert coordinates such that box is shown with respect to crop origin
+    tile_annotations["window_xmin"]=tile_annotations["origin_xmin"]- window_coords["x1"]
+    tile_annotations["window_ymin"]=tile_annotations["origin_ymin"]- window_coords["y1"]
+    tile_annotations["window_xmax"]=tile_annotations["origin_xmax"]- window_coords["x1"]
+    tile_annotations["window_ymax"]=tile_annotations["origin_ymax"]- window_coords["y1"]
+    
+    overlapping_annotations=[]
+    
+    #for each  box, check if annotations overlap by more than 50% with crop.
+    for index,row in tile_annotations.iterrows():
+        
+        #construct box
+        box_coords={}
+        
+        #top left
+        box_coords["x1"]=row["origin_xmin"]
+        box_coords["y1"]=row["origin_ymin"]
+        
+        #Bottom right
+        box_coords["x2"]=row["origin_xmax"]
+        box_coords["y2"]=row["origin_ymax"]     
+        
+        overlap=box_overlap(window_coords, box_coords)
+        if overlap > 0.25:
+            
+            overlapping_annotations.append(row.treeID)
+    
+    overlapping_boxes=tile_annotations[tile_annotations.treeID.isin(overlapping_annotations)]
+    
+    return(overlapping_boxes)    
 
 
 def box_overlap(window, box):
@@ -150,73 +193,6 @@ def box_overlap(window, box):
     overlap = intersection_area / float(box_area)
     return overlap
 
-def fetch_annotations(image,index,annotations):
-    
-    #Filter annotations in the selected tile
-    tile_annotations=annotations[annotations["rgb_path"]==image.split("/")[-1]]
-    
-    #Get image crop
-    windows=compute_windows(image)
-    
-    #Find index of crop and create coordinate box
-    x,y,w,h=windows[index].getRect()
-    
-    window_coords={}
-
-    #top left
-    window_coords["x1"]=x
-    window_coords["y1"]=y
-    
-    #Bottom right
-    window_coords["x2"]=x+w    
-    window_coords["y2"]=y+h    
-    
-    #convert coordinates such that box is shown with respect to crop origin
-    tile_annotations["window_xmin"]=tile_annotations["origin_xmin"]- window_coords["x1"]
-    tile_annotations["window_ymin"]=tile_annotations["origin_ymin"]- window_coords["y1"]
-    tile_annotations["window_xmax"]=tile_annotations["origin_xmax"]- window_coords["x1"]
-    tile_annotations["window_ymax"]=tile_annotations["origin_ymax"]- window_coords["y1"]
-    
-    overlapping_annotations=[]
-    
-    #for each overlapping box, check if annotations overlap by more than 50% with crop.
-    for index,row in tile_annotations.iterrows():
-        
-        #construct box
-        box_coords={}
-        
-        #top left
-        box_coords["x1"]=row["origin_xmin"]
-        box_coords["y1"]=row["origin_ymin"]
-        
-        #Bottom right
-        box_coords["x2"]=row["origin_xmax"]
-        box_coords["y2"]=row["origin_ymax"]     
-        
-        overlap=box_overlap(window_coords, box_coords)
-        if overlap > 0.25:
-            
-            overlapping_annotations.append(row.treeID)
-    
-    overlapping_boxes=tile_annotations[tile_annotations.treeID.isin(overlapping_annotations)]
-    
-    return(overlapping_boxes)    
-
-#Find window indices
-def compute_windows(image,pixels=250,overlap=0.05):
-    im = Image.open(image)
-    data = np.array(im)    
-    windows = sw.generate(data, sw.DimOrder.HeightWidthChannel, pixels,overlap )
-    return(windows)
-
-#Get image from tile and window index
-def retrieve_window(image,index,pixels=250,overlap=0.05):
-    im = Image.open(image)
-    data = np.array(im)    
-    windows = sw.generate(data, sw.DimOrder.HeightWidthChannel, pixels,overlap )
-    crop=data[windows[index].indices()]
-    return(crop)
-
 
 class OnTheFlyGenerator(generator.Generator):
     """ Generate data for a custom CSV dataset.
@@ -242,8 +218,10 @@ class OnTheFlyGenerator(generator.Generator):
         self.image_data  = {}
         self.base_dir    = base_dir
         
-        #Store config
+        #Store config and resolution
         self.config=config
+        self.rgb_tile_dir=base_dir
+        self.rgb_res=config['rgb_res']
         
         #debug - plot images, based on config fiile
         self.plot_image=config['plot_image']
@@ -251,25 +229,25 @@ class OnTheFlyGenerator(generator.Generator):
         # Take base_dir from annotations file if not explicitly specified.
         if self.base_dir is None:
             self.base_dir = os.path.dirname(csv_data_file)
+        
+        #Read annotations into pandas dataframe
+        self.annotation_list=load_csv(csv_data_file, self.rgb_res)
             
+        #Compute sliding windows, assumed that all objects are the same extent and resolution
+        self.windows=compute_windows(base_dir + self.annotation_list.rgb_path[0], 250, 0.05)
+        
         #Read classes
-        self.classes=_read_classes(csv_data_file)  
+        self.classes=_read_classes(data=self.annotation_list)  
         
         #Create label dict
         self.labels = {}
         for key, value in self.classes.items():
             self.labels[value] = key        
-
-        self.rgb_tile_dir=base_dir
-        self.rgb_res=config['rgb_res']
         
-        #Read image data
-        self.image_data=_read_annotations(csv_data_file,self.base_dir,self.config)
+        #Create list of sliding windows to select
+        self.image_data=_read_annotations(self.annotation_list,self.base_dir,self.windows,self.config)
         self.image_names = list(self.image_data.keys())
         
-        #Read corresponding annotations
-        self.annotation_list=load_csv(csv_data_file, self.rgb_res)
-
         super(OnTheFlyGenerator, self).__init__(**kwargs)
           
     def show(self,image,index,window_boxes):
@@ -324,9 +302,16 @@ class OnTheFlyGenerator(generator.Generator):
         image_name=self.image_names[image_index]        
         row=self.image_data[image_name]
         
-        #Load image and get crop
-        image=retrieve_window(self.base_dir+row["image"], row["windows"])
+        #Open image to crop
+        im = Image.open(self.base_dir+row["image"])
+        numpy_image = np.array(im)    
+        
+        #Load rgb image and get crop
+        image=retrieve_window(numpy_image=numpy_image,index=row["windows"],windows=self.windows)
          
+        #load lidar crop
+        chm=compute_chm(annotations=self.annotation_list,row=row,windows=self.windows,rgb_res=self.rgb_res,lidar_path):
+            
         #BGR order
         image=image[:,:,::-1].copy()
         
