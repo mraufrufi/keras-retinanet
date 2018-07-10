@@ -143,7 +143,6 @@ def fetch_annotations(image,index,annotations):
             
             overlapping_annotations.append(row.treeID)
     
-    
     overlapping_boxes=tile_annotations[tile_annotations.treeID.isin(overlapping_annotations)]
     
     #If boxes fall off edge, clip to window extent    
@@ -154,8 +153,8 @@ def fetch_annotations(image,index,annotations):
     max_height=window_coords['y2']-window_coords['y1']
     max_width=window_coords['x2']-window_coords['x1']
     
-    overlapping_boxes.loc[overlapping_boxes["window_xmax"] > max_width,"window_xmax"]=max_width
-    overlapping_boxes.loc[overlapping_boxes["window_ymax"] > max_height,"window_ymax"]=max_height
+    overlapping_boxes.loc[overlapping_boxes["window_xmax"] > max_width,"window_xmax"]=max_width-1
+    overlapping_boxes.loc[overlapping_boxes["window_ymax"] > max_height,"window_ymax"]=max_height-1
     
     return(overlapping_boxes)    
 
