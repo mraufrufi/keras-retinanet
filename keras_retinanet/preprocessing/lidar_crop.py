@@ -53,7 +53,7 @@ def compute_chm(annotations,row,windows,rgb_res,lidar_path):
     xmin,xmax,ymin,ymax=get_window_extent(annotations=annotations, row=row, windows=windows,rgb_res=rgb_res)
     
     #Create shapely polygon
-    poly=createPolygon(window_xmin, window_xmax, window_ymax,window_ymin)
+    poly=createPolygon(xmin, xmax, ymin,ymax)
     
     #Read lidar tile
     pc=pyfor.cloud.Cloud(lidar_path)

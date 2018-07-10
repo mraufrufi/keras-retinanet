@@ -19,7 +19,7 @@ import matplotlib.patches as patches
 import slidingwindow as sw
 import itertools
 
-from lidar_crop import compute_chm
+#from lidar_crop import compute_chm
 
 def expand_grid(data_dict):
     rows = itertools.product(*data_dict.values())
@@ -143,7 +143,19 @@ def fetch_annotations(image,index,annotations):
             
             overlapping_annotations.append(row.treeID)
     
+    
     overlapping_boxes=tile_annotations[tile_annotations.treeID.isin(overlapping_annotations)]
+    
+    #If boxes fall off edge, clip to window extent    
+    overlapping_boxes.loc[overlapping_boxes["window_xmin"] < 0,"window_xmin"]=0
+    overlapping_boxes.loc[overlapping_boxes["window_ymin"] < 0,"window_ymin"]=0
+    
+    #The max size depends on the sliding window
+    max_height=window_coords['y2']-window_coords['y1']
+    max_width=window_coords['x2']-window_coords['x1']
+    
+    overlapping_boxes.loc[overlapping_boxes["window_xmax"] > max_width,"window_xmax"]=max_width
+    overlapping_boxes.loc[overlapping_boxes["window_ymax"] > max_height,"window_ymax"]=max_height
     
     return(overlapping_boxes)    
 
@@ -250,13 +262,10 @@ class OnTheFlyGenerator(generator.Generator):
         
         super(OnTheFlyGenerator, self).__init__(**kwargs)
           
-    def show(self,image,index,window_boxes):
+    def show(self,image,window_boxes):
                 
-        #Show crop and image
-        img=retrieve_window(image,index)
-        
         fig,ax = pyplot.subplots(1)
-        ax.imshow(img)
+        ax.imshow(image)
         
         for index,box in window_boxes.iterrows():            
             bottom_left=(box['window_xmin'],box['window_ymin'])
@@ -304,14 +313,20 @@ class OnTheFlyGenerator(generator.Generator):
         
         #Open image to crop
         im = Image.open(self.base_dir+row["image"])
-        numpy_image = np.array(im)    
+        self.numpy_image = np.array(im)    
         
         #Load rgb image and get crop
-        image=retrieve_window(numpy_image=numpy_image,index=row["windows"],windows=self.windows)
+        image=retrieve_window(numpy_image=self.numpy_image,index=row["windows"],windows=self.windows)
+         
+         #find lidar tile 
+        lidar_path=self.annotation_list[self.annotation_list.rgb_path==row["image"]].lidar_path.unique()[0]
          
         #load lidar crop
-        chm=compute_chm(annotations=self.annotation_list,row=row,windows=self.windows,rgb_res=self.rgb_res,lidar_path):
+        #chm=compute_chm(annotations=self.annotation_list,row=row,windows=self.windows,rgb_res=self.rgb_res,lidar_path=lidar_path)
             
+        #Store if needed for show, in RGB?
+        self.image=image
+        
         #BGR order
         image=image[:,:,::-1].copy()
         
@@ -333,7 +348,7 @@ class OnTheFlyGenerator(generator.Generator):
         
         #view image if needed on debug
         if self.plot_image:
-            self.show(image=self.base_dir + row["image"], index=row["windows"],window_boxes=window_boxes)
+            self.show(self.image,window_boxes=window_boxes)
                 
         return boxes
 
