@@ -245,7 +245,7 @@ class OnTheFlyGenerator(generator.Generator):
         self.annotation_list=load_csv(csv_data_file, self.rgb_res)
             
         #Compute sliding windows, assumed that all objects are the same extent and resolution
-        self.windows=compute_windows(base_dir + self.annotation_list.rgb_path[0], 250, 0.05)
+        self.windows=compute_windows(base_dir + self.annotation_list.rgb_path.unique()[0], 250, 0.05)
         
         #Read classes
         self.classes=_read_classes(data=self.annotation_list)  
