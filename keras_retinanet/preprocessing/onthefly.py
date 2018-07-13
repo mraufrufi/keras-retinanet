@@ -324,9 +324,7 @@ class OnTheFlyGenerator(Generator):
         #Select sliding window and tile
         image_name=self.image_names[image_index]        
         row=self.image_data[image_name]
-        
-        print(row)
-        
+                
         #Open image to crop
         ##Check if image the is same as previous draw from generator, this will save time.
         if not row["image"] == self.previous_image_path:
@@ -353,7 +351,6 @@ class OnTheFlyGenerator(Generator):
         """
         
         #Find the original data and crop
-        print("Image index= %s" %(image_index))
         image_name=self.image_names[image_index]
         row=self.image_data[image_name]
         
