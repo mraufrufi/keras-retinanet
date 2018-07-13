@@ -330,6 +330,7 @@ class OnTheFlyGenerator(Generator):
         #Open image to crop
         ##Check if image the is same as previous draw from generator, this will save time.
         if not row["image"] == self.previous_image_path:
+            print("Loading new tile: %s" %(row["image"]))
             im = Image.open(self.base_dir+row["image"])
             self.numpy_image = np.array(im)    
         
