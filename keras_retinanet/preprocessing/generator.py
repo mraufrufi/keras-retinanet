@@ -215,6 +215,9 @@ class Generator(object):
     def group_images(self):
         """ Order the images according to self.order and makes groups of self.batch_size.
         """
+        
+        print("self.group_method is: %s" %(self.group_method))
+        
         # determine the order of the images
         order = list(range(self.size()))
         if self.group_method == 'random':

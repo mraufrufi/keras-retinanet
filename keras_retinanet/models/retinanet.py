@@ -303,6 +303,7 @@ def retinanet_bbox(
     model                 = None,
     anchor_parameters     = AnchorParameters.default,
     nms                   = True,
+    nms_threshold=nms_threshold,
     class_specific_filter = True,
     name                  = 'retinanet-bbox',
     **kwargs

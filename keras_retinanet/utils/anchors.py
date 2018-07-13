@@ -18,7 +18,6 @@ import numpy as np
 
 from ..utils.compute_overlap import compute_overlap
 
-
 def anchor_targets_bbox(
     anchors,
     annotations,

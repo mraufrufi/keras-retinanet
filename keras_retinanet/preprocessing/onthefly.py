@@ -3,7 +3,7 @@ On the fly generator. Crop out portions of a large image, and pass boxes and ann
 """
 import pandas as pd
 
-from keras_retinanet.preprocessing import generator
+from keras_retinanet.preprocessing.generator import Generator
 from keras_retinanet.utils.image import read_image_bgr
 
 import numpy as np
@@ -86,22 +86,25 @@ def _read_annotations(data,base_dir,windows,config):
     #Expand grid
     tile_data=expand_grid(tile_windows)
     
-    #Optionally subsample data based on config file
+    #Optionally subsample data based on config file. To increase efficiency, sample in order of preserving as many windows on the same tile.
     
     if not config["subsample"] == "None":
         
-        tile_data=tile_data.sample(n=config["subsample"])
+        tile_data=tile_data.head(n=config["subsample"])
+        #tile_data.sample(frac=1)
         
     image_dict=tile_data.to_dict("index")
     return(image_dict)
     
-def fetch_annotations(image,index,annotations):
+def fetch_annotations(image,index,annotations,windows,offset,patch_size):
+    '''
+    Find annotations that match the sliding window.
+    Note that the window method is calculated once in train.py, this assumes all tiles have the same size and resolution
+    offset: Number of meters to add to box edge to look for annotations
+    '''
     
     #Filter annotations in the selected tile
     tile_annotations=annotations[annotations["rgb_path"]==image.split("/")[-1]]
-    
-    #Get image crop
-    windows=compute_windows(image)
     
     #Find index of crop and create coordinate box
     x,y,w,h=windows[index].getRect()
@@ -122,10 +125,17 @@ def fetch_annotations(image,index,annotations):
     tile_annotations["window_xmax"]=tile_annotations["origin_xmax"]- window_coords["x1"]
     tile_annotations["window_ymax"]=tile_annotations["origin_ymax"]- window_coords["y1"]
     
+    #Quickly subset a reasonable set of annotations based on sliding window
+    d=tile_annotations[(tile_annotations["window_xmin"] > -offset) &  
+                     (tile_annotations["window_ymin"] > -offset)  &
+                     (tile_annotations["window_xmax"] < (patch_size+ offset)) &
+                     (tile_annotations["window_ymax"] < (patch_size+ offset))
+                     ]
+    
     overlapping_annotations=[]
     
-    #for each  box, check if annotations overlap by more than 50% with crop.
-    for index,row in tile_annotations.iterrows():
+    #for each potential box, check if annotations overlap with crop.
+    for index,row in d.iterrows():
         
         #construct box
         box_coords={}
@@ -205,7 +215,7 @@ def box_overlap(window, box):
     return overlap
 
 
-class OnTheFlyGenerator(generator.Generator):
+class OnTheFlyGenerator(Generator):
     """ Generate data for a custom CSV dataset.
 
     See https://github.com/fizyr/keras-retinanet#csv-datasets for more information.
@@ -234,6 +244,9 @@ class OnTheFlyGenerator(generator.Generator):
         self.rgb_tile_dir=base_dir
         self.rgb_res=config['rgb_res']
         
+        #Holder for image path, keep from reloading same image to save time.
+        self.previous_image_path=None
+        
         #debug - plot images, based on config fiile
         self.plot_image=config['plot_image']
         
@@ -245,7 +258,7 @@ class OnTheFlyGenerator(generator.Generator):
         self.annotation_list=load_csv(csv_data_file, self.rgb_res)
             
         #Compute sliding windows, assumed that all objects are the same extent and resolution
-        self.windows=compute_windows(base_dir + self.annotation_list.rgb_path.unique()[0], 250, 0.05)
+        self.windows=compute_windows(base_dir + self.annotation_list.rgb_path.unique()[0], config["patch_size"], config["patch_overlap"])
         
         #Read classes
         self.classes=_read_classes(data=self.annotation_list)  
@@ -311,23 +324,22 @@ class OnTheFlyGenerator(generator.Generator):
         row=self.image_data[image_name]
         
         #Open image to crop
-        im = Image.open(self.base_dir+row["image"])
-        self.numpy_image = np.array(im)    
+        ##Check if image the is same as previous draw from generator, this will save time.
+        if not row["image"] == self.previous_image_path:
+            im = Image.open(self.base_dir+row["image"])
+            self.numpy_image = np.array(im)    
         
         #Load rgb image and get crop
         image=retrieve_window(numpy_image=self.numpy_image,index=row["windows"],windows=self.windows)
-         
-         #find lidar tile 
-        lidar_path=self.annotation_list[self.annotation_list.rgb_path==row["image"]].lidar_path.unique()[0]
-         
-        #load lidar crop
-        #chm=compute_chm(annotations=self.annotation_list,row=row,windows=self.windows,rgb_res=self.rgb_res,lidar_path=lidar_path)
-            
-        #Store if needed for show, in RGB?
+        
+        #Store if needed for show, in RGB color space.
         self.image=image
         
         #BGR order
         image=image[:,:,::-1].copy()
+        
+        #Save image path for next evaluation to check
+        self.previous_image_path = row["image"]
         
         return image
 
@@ -336,11 +348,17 @@ class OnTheFlyGenerator(generator.Generator):
         """
         
         #Find the original data and crop
+        print("Image index= %s" %(image_index))
         image_name=self.image_names[image_index]
         row=self.image_data[image_name]
         
         #Which annotations fall into that crop?
-        window_boxes=fetch_annotations(image=self.base_dir+row["image"], index=row["windows"],annotations=self.annotation_list)
+        window_boxes=fetch_annotations(image=self.base_dir+row["image"],
+                                       index=row["windows"],
+                                       annotations=self.annotation_list,
+                                       windows=self.windows,
+                                       offset=self.config["patch_size"]*0.25,
+                                       patch_size=self.config["patch_size"])
         
         #Format boxes
         boxes=window_boxes[["window_xmin","window_ymin","window_xmax","window_ymax","numeric_label"]].as_matrix()
@@ -350,19 +368,4 @@ class OnTheFlyGenerator(generator.Generator):
             self.show(self.image,window_boxes=window_boxes)
                 
         return boxes
-
-if __name__=="__main__":
-    #construct a config
-    config={}
-    config['rgb_tile_dir']="/Users/ben/Documents/DeepForest/data/"
-    config['rgb_res']=0.1
-    config['plot_image']=True
-    config["subsample"]=10
-    path="/Users/ben/Documents/DeepForest/data/NEON_D03_OSBS_DP1_407000_3291000_classified_point_cloud_laz.csv"
     
-    np.random.seed(2)
-    training_generator=OnTheFlyGenerator(csv_data_file=path,group_method="random",config=config,base_dir=config["rgb_tile_dir"])
-    
-    for x in np.arange(10):
-        boxes=training_generator.next()
-        print(boxes)
