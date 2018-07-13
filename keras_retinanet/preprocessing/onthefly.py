@@ -3,8 +3,8 @@ On the fly generator. Crop out portions of a large image, and pass boxes and ann
 """
 import pandas as pd
 
-from keras_retinanet.preprocessing.generator import Generator
-from keras_retinanet.utils.image import read_image_bgr
+from .generator import Generator
+from ..utils.image import read_image_bgr
 
 import numpy as np
 from PIL import Image
@@ -86,12 +86,14 @@ def _read_annotations(data,base_dir,windows,config):
     #Expand grid
     tile_data=expand_grid(tile_windows)
     
-    #Optionally subsample data based on config file. To increase efficiency, sample in order of preserving as many windows on the same tile.
+    #Optionally subsample data based on config file. To increase efficiency, sample in order of preserving as many windows on the same tile, but shuffle within each tile
     
     if not config["subsample"] == "None":
         
         tile_data=tile_data.head(n=config["subsample"])
-        #tile_data.sample(frac=1)
+        groups = [df for _, df in tile_data.groupby('image')]
+        groups=[x.sample(frac=1) for x in groups]
+        tile_data=pd.concat(groups).reset_index(drop=True)
         
     image_dict=tile_data.to_dict("index")
     return(image_dict)
@@ -322,6 +324,8 @@ class OnTheFlyGenerator(Generator):
         #Select sliding window and tile
         image_name=self.image_names[image_index]        
         row=self.image_data[image_name]
+        
+        print(row)
         
         #Open image to crop
         ##Check if image the is same as previous draw from generator, this will save time.

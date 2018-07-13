@@ -8,6 +8,8 @@ import pandas as pd
 import cProfile
 import pstats
 import time
+import glob
+
 pr = cProfile.Profile()
 pr.enable()
 
@@ -38,12 +40,15 @@ config["plot_image"]= False
 #Set seed
 np.random.seed(2)
 
+#Load data
 data=load_data(data_dir="/Users/ben/Documents/DeepForest/" + config['training_csvs'])
     
 #Write training and evaluation data to file for annotations
 data.to_csv("/Users/ben/Documents/DeepForest/data/training/detection.csv")
 
-training_generator=onthefly.OnTheFlyGenerator(csv_data_file="/Users/ben/Documents/DeepForest/data/training/detection.csv",group_method="none",shuffle_groups=False,config=config,base_dir="/Users/ben/Documents/DeepForest/" + config["rgb_tile_dir"])
+training_generator=onthefly.OnTheFlyGenerator(csv_data_file="/Users/ben/Documents/DeepForest/data/training/detection.csv",
+                                              group_method="none",shuffle_groups=False,
+                                              config=config,base_dir="/Users/ben/Documents/DeepForest/" + config["rgb_tile_dir"])
 
 for x in np.arange(5):
     start=time.time()
