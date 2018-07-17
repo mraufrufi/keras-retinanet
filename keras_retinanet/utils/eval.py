@@ -103,7 +103,8 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100, 
             draw_detections(raw_image, image_boxes, image_scores, image_labels, label_to_name=generator.label_to_name,score_threshold=0.4)
             cv2.imwrite(os.path.join(save_path, '{}.png'.format(i)), raw_image)
             if experiment:              
-                experiment.log_image(os.path.join(save_path, '{}.png'.format(i)),file_name=str(i))
+                #experiment.log_image(os.path.join(save_path, '{}.png'.format(i)),file_name=str(i))
+                pass
 
         # copy detections to all_detections
         for label in range(generator.num_classes()):
