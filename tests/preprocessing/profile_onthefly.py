@@ -35,7 +35,7 @@ def load_data(data_dir):
 with open("/Users/ben/Documents/DeepForest/_config_debug.yml", 'r') as f:
     config = yaml.load(f)    
 
-config["plot_image"]= False
+config["plot_image"]= True
 
 #Set seed
 np.random.seed(2)
@@ -50,13 +50,12 @@ training_generator=onthefly.OnTheFlyGenerator(csv_data_file="/Users/ben/Document
                                               group_method="none",shuffle_groups=False,
                                               config=config,base_dir="/Users/ben/Documents/DeepForest/" + config["rgb_tile_dir"])
 
-for x in np.arange(5):
+for x in np.arange(10):
     start=time.time()
-    boxes=training_generator.next()
+    training_generator.next()
     end=time.time()
     delta=end-start
     print("Time elapsed %f" %(delta))
-
 
 stats = pstats.Stats(pr)
 stats.strip_dirs()

@@ -145,8 +145,8 @@ class Generator(object):
             if len(invalid_indices):  
                 
                 #During debug unflag to stop on warnings
-                #import warnings
-                #warnings.filterwarnings("error")
+                import warnings
+                warnings.filterwarnings("error")
                 
                 warnings.warn('Image with id {} (shape {}) contains the following invalid boxes: {}.'.format(
                     group[index],

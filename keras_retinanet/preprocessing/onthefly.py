@@ -104,10 +104,7 @@ def fetch_annotations(image,index,annotations,windows,offset,patch_size):
     Note that the window method is calculated once in train.py, this assumes all tiles have the same size and resolution
     offset: Number of meters to add to box edge to look for annotations
     '''
-    
-    #Filter annotations in the selected tile
-    tile_annotations=annotations[annotations["rgb_path"]==image.split("/")[-1]]
-    
+
     #Find index of crop and create coordinate box
     x,y,w,h=windows[index].getRect()
     
@@ -122,40 +119,21 @@ def fetch_annotations(image,index,annotations,windows,offset,patch_size):
     window_coords["y2"]=y+h    
     
     #convert coordinates such that box is shown with respect to crop origin
-    tile_annotations["window_xmin"]=tile_annotations["origin_xmin"]- window_coords["x1"]
-    tile_annotations["window_ymin"]=tile_annotations["origin_ymin"]- window_coords["y1"]
-    tile_annotations["window_xmax"]=tile_annotations["origin_xmax"]- window_coords["x1"]
-    tile_annotations["window_ymax"]=tile_annotations["origin_ymax"]- window_coords["y1"]
-    
+    annotations["window_xmin"] = annotations["origin_xmin"]- window_coords["x1"]
+    annotations["window_ymin"] = annotations["origin_ymin"]- window_coords["y1"]
+    annotations["window_xmax"] = annotations["origin_xmax"]- window_coords["x1"]
+    annotations["window_ymax"] = annotations["origin_ymax"]- window_coords["y1"]
+
     #Quickly subset a reasonable set of annotations based on sliding window
-    d=tile_annotations[(tile_annotations["window_xmin"] > -offset) &  
-                     (tile_annotations["window_ymin"] > -offset)  &
-                     (tile_annotations["window_xmax"] < (patch_size+ offset)) &
-                     (tile_annotations["window_ymax"] < (patch_size+ offset))
+    d=annotations[ 
+        (annotations["rgb_path"]==image.split("/")[-1]) &
+        (annotations.window_xmin > -offset) &  
+        (annotations.window_ymin > -offset)  &
+        (annotations.window_xmax < (patch_size+ offset)) &
+        (annotations.window_ymax < (patch_size+ offset))
                      ]
     
-    overlapping_annotations=[]
-    
-    #for each potential box, check if annotations overlap with crop.
-    for index,row in d.iterrows():
-        
-        #construct box
-        box_coords={}
-        
-        #top left
-        box_coords["x1"]=row["origin_xmin"]
-        box_coords["y1"]=row["origin_ymin"]
-        
-        #Bottom right
-        box_coords["x2"]=row["origin_xmax"]
-        box_coords["y2"]=row["origin_ymax"]     
-        
-        overlap=box_overlap(window_coords, box_coords)
-        if overlap > 0.25:
-            
-            overlapping_annotations.append(row.treeID)
-    
-    overlapping_boxes=tile_annotations[tile_annotations.treeID.isin(overlapping_annotations)]
+    overlapping_boxes=d[d.apply(box_overlap,window=window_coords,axis=1) > 0.5]
     
     #If boxes fall off edge, clip to window extent    
     overlapping_boxes.loc[overlapping_boxes["window_xmin"] < 0,"window_xmin"]=0
@@ -165,13 +143,17 @@ def fetch_annotations(image,index,annotations,windows,offset,patch_size):
     max_height=window_coords['y2']-window_coords['y1']
     max_width=window_coords['x2']-window_coords['x1']
     
-    overlapping_boxes.loc[overlapping_boxes["window_xmax"] > max_width,"window_xmax"]=max_width-1
-    overlapping_boxes.loc[overlapping_boxes["window_ymax"] > max_height,"window_ymax"]=max_height-1
+    overlapping_boxes.loc[overlapping_boxes["window_xmax"] > max_width,"window_xmax"]=max_width
+    overlapping_boxes.loc[overlapping_boxes["window_ymax"] > max_height,"window_ymax"]=max_height
     
-    return(overlapping_boxes)    
+    #format
+    boxes=overlapping_boxes[["window_xmin","window_ymin","window_xmax","window_ymax","numeric_label"]].values
+    
+    print(boxes)
+    return(boxes)    
 
 
-def box_overlap(window, box):
+def box_overlap(row,window):
     """
     Calculate the Intersection over Union (IoU) of two bounding boxes.
 
@@ -191,6 +173,18 @@ def box_overlap(window, box):
     float
         in [0, 1]
     """
+    
+    #construct box
+    box={}
+
+    #top left
+    box["x1"]=row["origin_xmin"]
+    box["y1"]=row["origin_ymin"]
+
+    #Bottom right
+    box["x2"]=row["origin_xmax"]
+    box["y2"]=row["origin_ymax"]     
+    
     assert window['x1'] < window['x2']
     assert window['y1'] < window['y2']
     assert box['x1'] < box['x2']
@@ -279,15 +273,15 @@ class OnTheFlyGenerator(Generator):
         
         super(OnTheFlyGenerator, self).__init__(**kwargs)
           
-    def show(self,image,window_boxes):
+    def show(self,image,boxes):
                 
         fig,ax = pyplot.subplots(1)
         ax.imshow(image)
         
-        for index,box in window_boxes.iterrows():            
-            bottom_left=(box['window_xmin'],box['window_ymin'])
-            height=box['window_ymax']-box['window_ymin']
-            width=box['window_xmax']-box['window_xmin']
+        for box in boxes:            
+            bottom_left=(box[0],box[1])
+            height=box[3]-box[1]
+            width=box[2]-box[0]
             rect = patches.Rectangle(bottom_left,width,height,linewidth=1,edgecolor='r',facecolor='none')
             ax.add_patch(rect)
         pyplot.show()
@@ -364,23 +358,19 @@ class OnTheFlyGenerator(Generator):
             boxes=self.annotation_dict[key]
         else:
             #Which annotations fall into that crop?
-            window_boxes=fetch_annotations(image=self.base_dir+row["image"],
+            self.annotation_dict[key]=fetch_annotations(image=self.base_dir+row["image"],
                                            index=row["windows"],
                                            annotations=self.annotation_list,
                                            windows=self.windows,
-                                           offset=self.config["patch_size"] *0.25,
+                                           offset=self.config["patch_size"] * 0.5,
                                            patch_size=self.config["patch_size"])
-        
-            #Format boxes
-            boxes=window_boxes[["window_xmin","window_ymin","window_xmax","window_ymax","numeric_label"]].values
-            
-            #Add to dict for future epochs
-            key=row["image"]+"_"+str(row["windows"])         
-            self.annotation_dict[key]=boxes
-        
-            #view image if needed on debug
-            if self.plot_image:
-                self.show(self.image,window_boxes=window_boxes)
-                
+
+        #Index
+        boxes=np.copy(self.annotation_dict[key])
+
+        #view image if needed on debug
+        if self.plot_image:
+            self.show(self.image,boxes)
+         
         return boxes
     
