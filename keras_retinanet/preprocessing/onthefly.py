@@ -249,6 +249,9 @@ class OnTheFlyGenerator(Generator):
         #Holder for image path, keep from reloading same image to save time.
         self.previous_image_path=None
         
+        #Holder for previous annotations, after epoch > 1
+        self.annotation_dict={}
+        
         #debug - plot images, based on config fiile
         self.plot_image=config['plot_image']
         
@@ -354,20 +357,30 @@ class OnTheFlyGenerator(Generator):
         image_name=self.image_names[image_index]
         row=self.image_data[image_name]
         
-        #Which annotations fall into that crop?
-        window_boxes=fetch_annotations(image=self.base_dir+row["image"],
-                                       index=row["windows"],
-                                       annotations=self.annotation_list,
-                                       windows=self.windows,
-                                       offset=self.config["patch_size"]*0.25,
-                                       patch_size=self.config["patch_size"])
+        #Look for annotations in previous epoch
+        key=row["image"]+"_"+str(row["windows"])
         
-        #Format boxes
-        boxes=window_boxes[["window_xmin","window_ymin","window_xmax","window_ymax","numeric_label"]].as_matrix()
+        if key in self.annotation_dict:
+            boxes=self.annotation_dict[key]
+        else:
+            #Which annotations fall into that crop?
+            window_boxes=fetch_annotations(image=self.base_dir+row["image"],
+                                           index=row["windows"],
+                                           annotations=self.annotation_list,
+                                           windows=self.windows,
+                                           offset=25,
+                                           patch_size=self.config["patch_size"])
         
-        #view image if needed on debug
-        if self.plot_image:
-            self.show(self.image,window_boxes=window_boxes)
+            #Format boxes
+            boxes=window_boxes[["window_xmin","window_ymin","window_xmax","window_ymax","numeric_label"]].values
+            
+            #Add to dict for future epochs
+            key=row["image"]+"_"+str(row["windows"])         
+            self.annotation_dict[key]=boxes
+        
+            #view image if needed on debug
+            if self.plot_image:
+                self.show(self.image,window_boxes=window_boxes)
                 
         return boxes
     
