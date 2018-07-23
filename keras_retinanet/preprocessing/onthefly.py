@@ -368,7 +368,7 @@ class OnTheFlyGenerator(Generator):
                                            index=row["windows"],
                                            annotations=self.annotation_list,
                                            windows=self.windows,
-                                           offset=25,
+                                           offset=self.config["patch_size"] *0.25,
                                            patch_size=self.config["patch_size"])
         
             #Format boxes
