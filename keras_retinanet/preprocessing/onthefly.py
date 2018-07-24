@@ -362,7 +362,7 @@ class OnTheFlyGenerator(Generator):
                                            index=row["windows"],
                                            annotations=self.annotation_list,
                                            windows=self.windows,
-                                           offset=self.config["patch_size"] * 0.5,
+                                           offset=(self.config["patch_size"] * 0.1)/self.rgb_res,
                                            patch_size=self.config["patch_size"])
 
         #Index
