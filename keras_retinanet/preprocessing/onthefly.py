@@ -149,7 +149,6 @@ def fetch_annotations(image,index,annotations,windows,offset,patch_size):
     #format
     boxes=overlapping_boxes[["window_xmin","window_ymin","window_xmax","window_ymax","numeric_label"]].values
     
-    print(boxes)
     return(boxes)    
 
 
