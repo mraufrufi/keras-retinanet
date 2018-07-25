@@ -88,7 +88,7 @@ def _read_annotations(data,base_dir,windows,config,shuffle):
     
     #Optionally randomize order to get new tiles
     if shuffle:
-        tile_data.sample(frac=1)
+        tile_data=tile_data.sample(frac=1)
         
     #Optionally subsample data based on config file. To increase efficiency, sample in order of preserving as many windows on the same tile, but shuffle within each tile
     

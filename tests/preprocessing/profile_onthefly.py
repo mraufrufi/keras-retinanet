@@ -38,6 +38,7 @@ with open("/Users/ben/Documents/DeepForest/_config_debug.yml", 'r') as f:
 config["plot_image"]= True
 config["shuffle_training"]=True
 
+
 #Set seed
 np.random.seed(2)
 
