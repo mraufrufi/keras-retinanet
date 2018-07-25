@@ -36,6 +36,7 @@ with open("/Users/ben/Documents/DeepForest/_config_debug.yml", 'r') as f:
     config = yaml.load(f)    
 
 config["plot_image"]= True
+config["shuffle_training"]=True
 
 #Set seed
 np.random.seed(2)
@@ -48,7 +49,7 @@ data.to_csv("/Users/ben/Documents/DeepForest/data/training/detection.csv")
 
 training_generator=onthefly.OnTheFlyGenerator(csv_data_file="/Users/ben/Documents/DeepForest/data/training/detection.csv",
                                               group_method="none",shuffle_groups=False,
-                                              config=config,base_dir="/Users/ben/Documents/DeepForest/" + config["rgb_tile_dir"])
+                                              config=config,base_dir="/Users/ben/Documents/DeepForest/" + config["rgb_tile_dir"],shuffle_tiles=config["shuffle_training"])
 
 for x in np.arange(10):
     start=time.time()

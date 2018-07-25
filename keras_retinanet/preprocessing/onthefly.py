@@ -225,7 +225,7 @@ class OnTheFlyGenerator(Generator):
         csv_data_file,
         config,
         base_dir=None,
-        shuffle_tiles,
+        shuffle_tiles=False,
         **kwargs
     ):
         """ Initialize a CSV data generator.
