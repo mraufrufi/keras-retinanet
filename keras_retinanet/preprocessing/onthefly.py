@@ -74,7 +74,7 @@ def _read_classes(data):
     return(classes)
 
 
-def _read_annotations(data,base_dir,windows,config):
+def _read_annotations(data,base_dir,windows,config,shuffle):
     """ Create list of sliding windows to pass to reader. Named for legacy to match generator class.
     """
     
@@ -86,6 +86,10 @@ def _read_annotations(data,base_dir,windows,config):
     #Expand grid
     tile_data=expand_grid(tile_windows)
     
+    #Optionally randomize order to get new tiles
+    if shuffle:
+        tile_data.sample(frac=1)
+        
     #Optionally subsample data based on config file. To increase efficiency, sample in order of preserving as many windows on the same tile, but shuffle within each tile
     
     if not config["subsample"] == "None":
@@ -221,6 +225,7 @@ class OnTheFlyGenerator(Generator):
         csv_data_file,
         config,
         base_dir=None,
+        shuffle_tiles,
         **kwargs
     ):
         """ Initialize a CSV data generator.
@@ -238,6 +243,7 @@ class OnTheFlyGenerator(Generator):
         self.config=config
         self.rgb_tile_dir=base_dir
         self.rgb_res=config['rgb_res']
+        self.shuffle=shuffle_tiles
         
         #Holder for image path, keep from reloading same image to save time.
         self.previous_image_path=None
@@ -267,7 +273,7 @@ class OnTheFlyGenerator(Generator):
             self.labels[value] = key        
         
         #Create list of sliding windows to select
-        self.image_data=_read_annotations(self.annotation_list,self.base_dir,self.windows,self.config)
+        self.image_data=_read_annotations(self.annotation_list,self.base_dir,self.windows,self.config,self.shuffle)
         self.image_names = list(self.image_data.keys())
         
         super(OnTheFlyGenerator, self).__init__(**kwargs)
