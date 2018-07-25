@@ -9,6 +9,7 @@ from ..utils.image import read_image_bgr
 import numpy as np
 from PIL import Image
 from six import raise_from
+import random
 
 import csv
 import sys
@@ -80,18 +81,20 @@ def _read_annotations(data,base_dir,windows,config,shuffle):
     
     #Create dictionary of windows for each image
     tile_windows={}
-    tile_windows["image"]=list(data.rgb_path.unique())
+    
+    all_images=list(data.rgb_path.unique())
+    
+    #Optionally randomize order to get new tiles    
+    if shuffle:
+        random.shuffle(all_images)
+
+    tile_windows["image"]=all_images
     tile_windows["windows"]=np.arange(0,len(windows))
     
     #Expand grid
     tile_data=expand_grid(tile_windows)
-    
-    #Optionally randomize order to get new tiles
-    if shuffle:
-        tile_data=tile_data.sample(frac=1)
-        
+
     #Optionally subsample data based on config file. To increase efficiency, sample in order of preserving as many windows on the same tile, but shuffle within each tile
-    
     if not config["subsample"] == "None":
         
         tile_data=tile_data.head(n=config["subsample"])
