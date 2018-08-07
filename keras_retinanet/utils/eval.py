@@ -25,7 +25,7 @@ import fiona
 import glob
 from PIL import Image
 import cv2
-
+import slidingwindow as sw
 
 def _compute_ap(recall, precision):
     """ Compute the average precision, given the recall and precision curves.
@@ -263,6 +263,8 @@ def JaccardEvaluate(
     #Load ground truth polygons
     ground_truth,ground_truth_tiles=_load_groundtruth()
     
+    plot_IoU =[]
+    
     for plot in ground_truth:
         
         #Load polygons
@@ -270,104 +272,95 @@ def JaccardEvaluate(
         
         #read rgb tile
         tile=ground_truth_tiles[plot]
-        im = Image.open(tile)
+        
+        #TODO correct missing tiles
+        try:
+            im = Image.open(tile)
+        except:
+            print("missing tile %s" % tile)
+            continue
+        
         numpy_image = np.array(im)
         
-        #utilize the generator to scale?
-        image, scale = generator.resize_image(numpy_image)
-    
-        # run network
-        boxes, scores, labels = model.predict_on_batch(np.expand_dims(image, axis=0))[:3]
-    
-        # correct boxes for image scale
-        boxes /= scale
+        #BGR order
+        numpy_image=numpy_image[:,:,::-1].copy()
         
-        # select indices which have a score above the threshold
-        indices = np.where(scores[0, :] > score_threshold)[0]
-    
-        # select those scores
-        scores = scores[0][indices]
-    
-        # find the order with which to sort the scores
-        scores_sort = np.argsort(-scores)[:max_detections]
-    
-        # select detections
-        image_boxes      = boxes[0, indices[scores_sort], :]
-        image_scores     = scores[scores_sort]
-        image_labels     = labels[0, indices[scores_sort]]
-        image_detections = np.concatenate([image_boxes, np.expand_dims(image_scores, axis=1), np.expand_dims(image_labels, axis=1)], axis=1)
+        #get sliding windows
+        windows=compute_windows(numpy_image)
         
-        #TODO
-        #if save_path is not None:
-            #draw_detections(numpy_image, image_boxes, image_scores, image_labels, label_to_name=generator.label_to_name,score_threshold=0.4)
-            #cv2.imwrite(os.path.join(save_path, '{}.png'.format(i)), numpy_image)
-            #if experiment:              
-                #experiment.log_image(os.path.join(save_path, '{}.png'.format(i)),file_name=str(i))
+        #holder for all detections among windows within tile
+        plot_detections=[]
+        
+        #Prediction for each window
+        for window in windows:
+            raw_image=retrieve_window(numpy_image,window)
+        
+            #utilize the generator to scale?
+            image, scale = generator.resize_image(raw_image)
+            
+            # run network
+            boxes, scores, labels = model.predict_on_batch(np.expand_dims(image, axis=0))[:3]
+            
+            # correct boxes for image scale
+            boxes /= scale
+            
+            # select indices which have a score above the threshold
+            indices = np.where(scores[0, :] > score_threshold)[0]
+            
+            # select those scores
+            scores = scores[0][indices]
+            
+            # find the order with which to sort the scores
+            scores_sort = np.argsort(-scores)[:max_detections]
+            
+            # select detections
+            image_boxes      = boxes[0, indices[scores_sort], :]
+            image_scores     = scores[scores_sort]
+            image_labels     = labels[0, indices[scores_sort]]
+            image_detections = np.concatenate([image_boxes, np.expand_dims(image_scores, axis=1), np.expand_dims(image_labels, axis=1)], axis=1)
+            
+            if len(image_detections)==0:
+                print("no detections")
+                mean_IoU=0
+            else:
+                print( "%d" % (len(image_detections)))
+                    
+                #Collect detection across windows
+                plot_detections.append(image_detections)                
+        
+        # non-max supression among tiles
+        
+        for window in plot_detections:
+            draw_detections(numpy_image, image_boxes, image_scores, image_labels, label_to_name=generator.label_to_name,score_threshold=0.4)
+            cv2.imshow("image",numpy_image)
+            cv2.waitKey(0)
+        
+        #Save image and send it to logger
+        if save_path is not None:
+            draw_detections(numpy_image, image_boxes, image_scores, image_labels, label_to_name=generator.label_to_name,score_threshold=0.4)
+            cv2.imwrite(os.path.join(save_path, '{}.png'.format(plot)), raw_image)
+            if experiment:              
+                experiment.log_image(os.path.join(save_path, '{}.png'.format(plot)),file_name=str(i))
                 
         #Find overlap 
         ## Filter?
         
         #Match Polygons
+        #overlap_matrix=np.zeros((len(ground_truth,len(all_detections))))
         
         #Select IoU
         
+        #mean IoU
         
-
-    # gather all detections and annotations
-    
+        plot_IoU.append(mean_IoU)
+        
+           
     if True:
-        raise("Error!")
+        raise Exception("Hold up")
     
     #create overlap matrix, fill with zeros
     
-    overlap_matrix=np.zeros((len(ground_truth,len(all_detections))))
-    
-    for i in range(generator.size()):
-        for d in all_detections:
-            
-            
-            scores = np.append(scores, d[4])
-
-            if annotations.shape[0] == 0:
-                false_positives = np.append(false_positives, 1)
-                true_positives  = np.append(true_positives, 0)
-                continue
-
-            overlaps            = compute_overlap(np.expand_dims(d, axis=0), annotations)
-            assigned_annotation = np.argmax(overlaps, axis=1)
-            max_overlap         = overlaps[0, assigned_annotation]
-
-            if max_overlap >= iou_threshold and assigned_annotation not in detected_annotations:
-                false_positives = np.append(false_positives, 0)
-                true_positives  = np.append(true_positives, 1)
-                detected_annotations.append(assigned_annotation)
-            else:
-                false_positives = np.append(false_positives, 1)
-                true_positives  = np.append(true_positives, 0)
-
-        # no annotations -> AP for this class is 0 (is this correct?)
-        if num_annotations == 0:
-            average_precisions[label] = 0, 0
-            continue
-
-        # sort by score
-        indices         = np.argsort(-scores)
-        false_positives = false_positives[indices]
-        true_positives  = true_positives[indices]
-
-        # compute false positives and true positives
-        false_positives = np.cumsum(false_positives)
-        true_positives  = np.cumsum(true_positives)
-
-        # compute recall and precision
-        recall    = true_positives / num_annotations
-        precision = true_positives / np.maximum(true_positives + false_positives, np.finfo(np.float64).eps)
-
-        # compute average precision
-        average_precision  = _compute_ap(recall, precision)
-        average_precisions[label] = average_precision, num_annotations
-
-    return average_precisions
+    return np.mean(plot_IoU)
 
 
 #load ground truth polygons and tiles
@@ -421,5 +414,10 @@ def IoU_polygon(ground_truth,predictions):
         
         iou = intersection_area / float(predicted_area + polygon_area - intersection_area)
         
-        
-        
+def compute_windows(numpy_image,pixels=400,overlap=0.05):
+    windows = sw.generate(numpy_image, sw.DimOrder.HeightWidthChannel, pixels,overlap )
+    return(windows)
+
+def retrieve_window(numpy_image,window):
+    crop=numpy_image[window.indices()]
+    return(crop)
