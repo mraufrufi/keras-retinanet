@@ -21,7 +21,9 @@ from .visualization import draw_detections, draw_annotations
 
 import numpy as np
 import os
-
+import fiona
+import glob
+from PIL import Image
 import cv2
 
 
@@ -74,8 +76,11 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100, 
 
     for i in range(generator.size()):
         raw_image    = generator.load_image(i)
+        print(raw_image.shape)
+    
         image        = generator.preprocess_image(raw_image)
         image, scale = generator.resize_image(image)
+        print(image.shape)
 
         # run network
         boxes, scores, labels = model.predict_on_batch(np.expand_dims(image, axis=0))[:3]
@@ -230,3 +235,191 @@ def evaluate(
         average_precisions[label] = average_precision, num_annotations
 
     return average_precisions
+
+#Jaccard evaluation
+def JaccardEvaluate(
+    generator,
+    model,
+    iou_threshold=0.5,
+    score_threshold=0.05,
+    max_detections=100,
+    save_path=None,
+    experiment=None
+):
+    """ Evaluate a given dataset using a given model.
+
+    # Arguments
+        generator       : The generator that represents the dataset to evaluate.
+        model           : The model to evaluate.
+        iou_threshold   : The threshold used to consider when a detection is positive or negative.
+        score_threshold : The score confidence threshold to use for detections.
+        max_detections  : The maximum number of detections to use per image.
+        save_path       : The path to save images with visualized detections to.
+        experiment     : Comet ml experiment to evaluate
+    # Returns
+        A dict mapping class names to mAP scores.
+    """
+    
+    #Load ground truth polygons
+    ground_truth,ground_truth_tiles=_load_groundtruth()
+    
+    for plot in ground_truth:
+        
+        #Load polygons
+        polys=ground_truth[plot]
+        
+        #read rgb tile
+        tile=ground_truth_tiles[plot]
+        im = Image.open(tile)
+        numpy_image = np.array(im)
+        
+        #utilize the generator to scale?
+        image, scale = generator.resize_image(numpy_image)
+    
+        # run network
+        boxes, scores, labels = model.predict_on_batch(np.expand_dims(image, axis=0))[:3]
+    
+        # correct boxes for image scale
+        boxes /= scale
+        
+        # select indices which have a score above the threshold
+        indices = np.where(scores[0, :] > score_threshold)[0]
+    
+        # select those scores
+        scores = scores[0][indices]
+    
+        # find the order with which to sort the scores
+        scores_sort = np.argsort(-scores)[:max_detections]
+    
+        # select detections
+        image_boxes      = boxes[0, indices[scores_sort], :]
+        image_scores     = scores[scores_sort]
+        image_labels     = labels[0, indices[scores_sort]]
+        image_detections = np.concatenate([image_boxes, np.expand_dims(image_scores, axis=1), np.expand_dims(image_labels, axis=1)], axis=1)
+        
+        #TODO
+        #if save_path is not None:
+            #draw_detections(numpy_image, image_boxes, image_scores, image_labels, label_to_name=generator.label_to_name,score_threshold=0.4)
+            #cv2.imwrite(os.path.join(save_path, '{}.png'.format(i)), numpy_image)
+            #if experiment:              
+                #experiment.log_image(os.path.join(save_path, '{}.png'.format(i)),file_name=str(i))
+                
+        #Find overlap 
+        ## Filter?
+        
+        #Match Polygons
+        
+        #Select IoU
+        
+        
+
+    # gather all detections and annotations
+    
+    if True:
+        raise("Error!")
+    
+    #create overlap matrix, fill with zeros
+    
+    overlap_matrix=np.zeros((len(ground_truth,len(all_detections))))
+    
+    for i in range(generator.size()):
+        for d in all_detections:
+            
+            
+            scores = np.append(scores, d[4])
+
+            if annotations.shape[0] == 0:
+                false_positives = np.append(false_positives, 1)
+                true_positives  = np.append(true_positives, 0)
+                continue
+
+            overlaps            = compute_overlap(np.expand_dims(d, axis=0), annotations)
+            assigned_annotation = np.argmax(overlaps, axis=1)
+            max_overlap         = overlaps[0, assigned_annotation]
+
+            if max_overlap >= iou_threshold and assigned_annotation not in detected_annotations:
+                false_positives = np.append(false_positives, 0)
+                true_positives  = np.append(true_positives, 1)
+                detected_annotations.append(assigned_annotation)
+            else:
+                false_positives = np.append(false_positives, 1)
+                true_positives  = np.append(true_positives, 0)
+
+        # no annotations -> AP for this class is 0 (is this correct?)
+        if num_annotations == 0:
+            average_precisions[label] = 0, 0
+            continue
+
+        # sort by score
+        indices         = np.argsort(-scores)
+        false_positives = false_positives[indices]
+        true_positives  = true_positives[indices]
+
+        # compute false positives and true positives
+        false_positives = np.cumsum(false_positives)
+        true_positives  = np.cumsum(true_positives)
+
+        # compute recall and precision
+        recall    = true_positives / num_annotations
+        precision = true_positives / np.maximum(true_positives + false_positives, np.finfo(np.float64).eps)
+
+        # compute average precision
+        average_precision  = _compute_ap(recall, precision)
+        average_precisions[label] = average_precision, num_annotations
+
+    return average_precisions
+
+
+#load ground truth polygons and tiles
+def _load_groundtruth():
+    
+    ground_truth={}
+    
+    shps=glob.glob("/Users/ben/Documents/TreeSegmentation/data/ITCs/*/*.shp",recursive=True)
+    
+    for shp in shps:
+        #Read polygons
+        with fiona.open(shp,"r") as source:
+            #Label by plot ID, all records are from the same plot
+            ground_truth[source[0]["properties"]["Plot_ID"]]=list(source)
+    
+    #Corresponding tiles
+    ground_truth_tiles={}
+    tile_path="/Users/ben/Documents/TreeSegmentation/data/2017/Camera/L3/"
+        
+    for plot in ground_truth:
+        ground_truth_tiles[plot]= tile_path + plot + ".tif"
+        
+    return(ground_truth,ground_truth_tiles)
+
+
+#IoU for non-rectangular polygons
+def IoU_polygon(ground_truth,predictions):
+    
+    from shapely.ops import cascaded_union
+    from rtree import index
+    idx = index.Index()
+    
+    # Populate R-tree index with bounds of grid cells
+    for pos, cell in enumerate(grid_cells):
+        # assuming cell is a shapely object
+        idx.insert(pos, cell.bounds)
+    
+    # Loop through each Shapely polygon
+    for poly in polygons:
+        # Merge cells that have overlapping bounding boxes
+        merged_cells = cascaded_union([grid_cells[pos] for pos in idx.intersection(poly.bounds)])
+        
+        #Area of predicted box
+        predicted_area=1
+        
+        #Area of ground truth polygon
+        polygon_area=1
+        
+        # Area of intersection
+        print(poly.intersection(merged_cells).area)
+        
+        iou = intersection_area / float(predicted_area + polygon_area - intersection_area)
+        
+        
+        

@@ -16,6 +16,7 @@ limitations under the License.
 
 import keras
 from ..utils.eval import evaluate
+from ..utils.eval import JaccardEvaluate
 
 
 class Evaluate(keras.callbacks.Callback):
@@ -84,3 +85,16 @@ class Evaluate(keras.callbacks.Callback):
 
         if self.verbose == 1:
             print('mAP: {:.4f}'.format(self.mean_ap))
+            
+            
+        #Jaccard overlap
+        # run evaluation
+        average_precisions = JaccardEvaluate(
+            self.generator,
+            self.model,
+            iou_threshold=self.iou_threshold,
+            score_threshold=self.score_threshold,
+            max_detections=self.max_detections,
+            save_path=self.save_path,
+            experiment=self.experiment
+        )        
