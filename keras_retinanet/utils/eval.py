@@ -77,11 +77,9 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100, 
 
     for i in range(generator.size()):
         raw_image    = generator.load_image(i)
-        print(raw_image.shape)
     
         image        = generator.preprocess_image(raw_image)
         image, scale = generator.resize_image(image)
-        print(image.shape)
 
         # run network
         boxes, scores, labels = model.predict_on_batch(np.expand_dims(image, axis=0))[:3]
@@ -287,7 +285,7 @@ def JaccardEvaluate(
         numpy_image=numpy_image[:,:,::-1].copy()
         
         #Gather detections
-        final_boxes=predict_tile(numpy_image,generator,model)
+        final_boxes=predict_tile(numpy_image,generator,model,score_threshold,max_detections)
         draw_detections(numpy_image, final_boxes[:,:4], final_boxes[:,4], final_boxes[:,5], label_to_name=generator.label_to_name,score_threshold=0.05,color=(255,0,0))  
         
         #Save image and send it to logger
@@ -435,7 +433,7 @@ def non_max_suppression(boxes, overlapThresh):
     return pick
 
 
-def predict_tile(numpy_image,generator,model):
+def predict_tile(numpy_image,generator,model,score_threshold,max_detections):
     #get sliding windows
     windows=compute_windows(numpy_image)
     
