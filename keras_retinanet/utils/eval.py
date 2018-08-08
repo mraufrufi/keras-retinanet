@@ -287,7 +287,7 @@ def JaccardEvaluate(
         numpy_image=numpy_image[:,:,::-1].copy()
         
         #Gather detections
-        final_boxes=predict_tile(numpy_image,generator)
+        final_boxes=predict_tile(numpy_image,generator,model)
         draw_detections(numpy_image, final_boxes[:,:4], final_boxes[:,4], final_boxes[:,5], label_to_name=generator.label_to_name,score_threshold=0.05,color=(255,0,0))  
         
         #Save image and send it to logger
@@ -435,7 +435,7 @@ def non_max_suppression(boxes, overlapThresh):
     return pick
 
 
-def predict_tile(numpy_image,generator):
+def predict_tile(numpy_image,generator,model):
     #get sliding windows
     windows=compute_windows(numpy_image)
     
