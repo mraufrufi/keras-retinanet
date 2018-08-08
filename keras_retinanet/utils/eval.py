@@ -25,6 +25,7 @@ import fiona
 import glob
 from PIL import Image
 import cv2
+import random
 import slidingwindow as sw
 
 def _compute_ap(recall, precision):
@@ -325,16 +326,33 @@ def JaccardEvaluate(
             else:
                 print( "%d" % (len(image_detections)))
                     
+                #align detections to original image
+                x,y,w,h=window.getRect()
+                
+                #boxes are in form x1, y1, x2, y2
+                image_detections[:,0] = image_detections[:,0] + x 
+                image_detections[:,1] = image_detections[:,1] + y 
+                image_detections[:,2] = image_detections[:,2] + x 
+                image_detections[:,3] = image_detections[:,3] + y 
+                
                 #Collect detection across windows
                 plot_detections.append(image_detections)                
         
         # non-max supression among tiles
         
-        for window in plot_detections:
-            draw_detections(numpy_image, image_boxes, image_scores, image_labels, label_to_name=generator.label_to_name,score_threshold=0.4)
-            cv2.imshow("image",numpy_image)
-            cv2.waitKey(0)
+
         
+        for window in plot_detections:
+            #Random colors visualization
+            r = lambda: random.randint(0,255)
+            color=(r(),r(),r())
+            draw_detections(numpy_image, window[:,:4], window[:,4], window[:,5], label_to_name=generator.label_to_name,score_threshold=0.4,color=color)
+        
+        cv2.imshow("image",numpy_image)
+        while True:
+            if cv2.waitKey(0)==27:
+                break
+                    
         #Save image and send it to logger
         if save_path is not None:
             draw_detections(numpy_image, image_boxes, image_scores, image_labels, label_to_name=generator.label_to_name,score_threshold=0.4)
