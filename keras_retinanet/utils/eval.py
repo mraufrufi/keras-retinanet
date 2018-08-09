@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+
 from __future__ import print_function
 
 from .anchors import compute_overlap
@@ -27,6 +28,13 @@ from PIL import Image
 import cv2
 import random
 import slidingwindow as sw
+
+#Plotting
+from shapely.geometry import box
+import rasterio
+import rasterio.plot
+import matplotlib as mpl
+from descartes import PolygonPatch
 
 def _compute_ap(recall, precision):
     """ Compute the average precision, given the recall and precision curves.
@@ -260,7 +268,7 @@ def JaccardEvaluate(
     """
     
     #Load ground truth polygons
-    ground_truth,ground_truth_tiles=_load_groundtruth()
+    ground_truth, ground_truth_tiles, ground_truth_utmbox=_load_groundtruth()
     
     plot_IoU =[]
     
@@ -271,14 +279,7 @@ def JaccardEvaluate(
         
         #read rgb tile
         tile=ground_truth_tiles[plot]
-        
-        #TODO correct missing tiles
-        try:
-            im = Image.open(tile)
-        except:
-            print("missing tile %s" % tile)
-            continue
-        
+        im = Image.open(tile)
         numpy_image = np.array(im)
         
         #BGR order
@@ -291,33 +292,55 @@ def JaccardEvaluate(
         #Save image and send it to logger
         if save_path is not None:
             draw_detections(numpy_image, final_boxes[:,:4], final_boxes[:,4], final_boxes[:,5], label_to_name=generator.label_to_name,score_threshold=0.05)
-            cv2.imwrite(os.path.join(save_path, '{}.png'.format(plot)), raw_image)
+            cv2.imwrite(os.path.join(save_path, '{}.png'.format(plot)), numpy_image)
             if experiment:              
-                experiment.log_image(os.path.join(save_path, '{}.png'.format(plot)),file_name=str(i))
+                experiment.log_image(os.path.join(save_path, '{}.png'.format(plot)),file_name=str(plot))
                 
         #Find overlap 
         ## Filter?
+        projected_boxes=[]
+        
+        for row in  final_boxes:
+            
+            #Add utm bounds and create a shapely polygon
+            pbox=create_polygon(row, ground_truth_utmbox[plot],cell_size=0.1)
+            projected_boxes.append(pbox)
+        
+        with rasterio.open(ground_truth_tiles[plot]) as src:
+            rasterio.plot.show((src))
+            ax = mpl.pyplot.gca()
+            
+            #Truth
+            patches = [PolygonPatch(feature) for feature in ground_truth[plot]]
+            ax.add_collection(mpl.collections.PatchCollection(patches))      
+            
+            pred_patches = [PolygonPatch(feature) for feature in projected_boxes]
+            ax.add_collection(mpl.collections.PatchCollection(pred_patches))                        
         
         #Match Polygons
+        
         #overlap_matrix=np.zeros((len(ground_truth,len(all_detections))))
         
         #Select IoU
         
         #mean IoU
         
-        plot_IoU.append(mean_IoU)
+        #plot_IoU.append(mean_IoU)
         
            
-    if True:
-        raise Exception("Hold up")
+    #if True:
+    #    raise Exception("Hold up")
     
     #create overlap matrix, fill with zeros
     
-    return np.mean(plot_IoU)
+    #return np.mean(plot_IoU)
 
 
 #load ground truth polygons and tiles
 def _load_groundtruth():
+    
+    #Returns ground truth polygons, path to tif files, and bounding boxes
+    #TODO these should be config settings
     
     ground_truth={}
     
@@ -335,8 +358,31 @@ def _load_groundtruth():
         
     for plot in ground_truth:
         ground_truth_tiles[plot]= tile_path + plot + ".tif"
+    
+    #Find extent of each tile for projection
+    ground_truth_utmbox = {}
+    
+    #Holder for bad indices to remove.
+    to_remove=[]
+    
+    for plot in ground_truth:
         
-    return(ground_truth,ground_truth_tiles)
+        if not os.path.exists(ground_truth_tiles[plot]): # check first if file exsits
+            print("missing tile %s, removing from list" % ground_truth_tiles[plot])
+            to_remove.append(plot)
+            continue
+
+        with rasterio.open(ground_truth_tiles[plot]) as dataset:
+            ground_truth_utmbox[plot]=dataset.bounds            
+
+    #Drop missing tile
+    for key in to_remove:
+        del ground_truth[key]
+        
+    return(ground_truth,
+           ground_truth_tiles,
+           ground_truth_utmbox
+           )
 
 
 #IoU for non-rectangular polygons
@@ -491,3 +537,16 @@ def predict_tile(numpy_image,generator,model,score_threshold,max_detections):
     final_box_index=non_max_suppression(all_boxes[:,:4], overlapThresh=0.2)
     final_boxes=all_boxes[final_box_index,:]
     return final_boxes
+
+
+def create_polygon(row,bounds,cell_size):
+    
+    #boxes are in form x1, y1, x2, y2, add the origin utm extent
+    x1= (row[0]/cell_size) + bounds.left
+    y1 = (row[1]/cell_size) + bounds.bottom
+    x2 =(row[2]/cell_size) + bounds.left
+    y2 = (row[3]/cell_size) + bounds.bottom
+    
+    b = box(x1, y1, x2, y2)
+    
+    return(b)
