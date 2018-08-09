@@ -306,16 +306,24 @@ def JaccardEvaluate(
             pbox=create_polygon(row, ground_truth_utmbox[plot],cell_size=0.1)
             projected_boxes.append(pbox)
         
+        #View overlap
         with rasterio.open(ground_truth_tiles[plot]) as src:
             rasterio.plot.show((src))
             ax = mpl.pyplot.gca()
             
             #Truth
-            patches = [PolygonPatch(feature) for feature in ground_truth[plot]]
-            ax.add_collection(mpl.collections.PatchCollection(patches))      
+            patches = [PolygonPatch(feature["geometry"]) for feature in ground_truth[plot]]
+            collection=mpl.collections.PatchCollection(patches)
+            collection.set_facecolor("none")    
+            collection.set_edgecolor("blue")            
+            ax.add_collection(collection)      
             
+            #Predicted
             pred_patches = [PolygonPatch(feature) for feature in projected_boxes]
-            ax.add_collection(mpl.collections.PatchCollection(pred_patches))                        
+            collection=mpl.collections.PatchCollection(pred_patches)
+            collection.set_facecolor("none")
+            collection.set_edgecolor("red")            
+            ax.add_collection(collection)                        
         
         #Match Polygons
         
@@ -542,10 +550,10 @@ def predict_tile(numpy_image,generator,model,score_threshold,max_detections):
 def create_polygon(row,bounds,cell_size):
     
     #boxes are in form x1, y1, x2, y2, add the origin utm extent
-    x1= (row[0]/cell_size) + bounds.left
-    y1 = (row[1]/cell_size) + bounds.bottom
-    x2 =(row[2]/cell_size) + bounds.left
-    y2 = (row[3]/cell_size) + bounds.bottom
+    x1= (row[0]*cell_size) + bounds.left
+    y1 = bounds.top - (row[1]*cell_size) 
+    x2 =(row[2]*cell_size) + bounds.left
+    y2 = bounds.top - (row[3]*cell_size) 
     
     b = box(x1, y1, x2, y2)
     
