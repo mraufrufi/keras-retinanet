@@ -19,6 +19,11 @@ import numpy as np
 
 from .colors import label_color
 
+import rasterio.plot
+import matplotlib as mpl
+from descartes import PolygonPatch
+from matplotlib import pyplot as plt
+import os
 
 def draw_box(image, box, color, thickness=1):
     """ Draws a box on an image with a given color.
@@ -98,3 +103,35 @@ def draw_annotations(image, annotations, color=(0, 255, 0), label_to_name=None):
         draw_caption(image, a, caption)
 
         draw_box(image, a, color=c)
+
+def draw_ground_overlap(plot,ground_truth,ground_truth_tiles,projected_boxes,save_path):
+    
+    
+
+    #set axis, 
+    xmin,ymin,xmax,ymax=[int(x) for x in ground_truth[plot]["bounds"]]
+    
+    with rasterio.open(ground_truth_tiles[plot]) as src:
+        
+        rasterio.plot.show((src))
+        ax = mpl.pyplot.gca()
+        
+        #Set axis with a bit of padding in meters
+        ax.axis([xmin-5,xmax+5,ymin-5,ymax+5])               
+        
+        #Truth
+        patches = [PolygonPatch(feature["geometry"]) for feature in ground_truth[plot]["data"]]
+        collection=mpl.collections.PatchCollection(patches)
+        collection.set_facecolor("none")    
+        collection.set_edgecolor("blue")            
+        ax.add_collection(collection)      
+        
+        #Predicted
+        pred_patches = [PolygonPatch(feature) for feature in projected_boxes]
+        collection=mpl.collections.PatchCollection(pred_patches)
+        collection.set_facecolor("none")
+        collection.set_edgecolor("red")            
+        ax.add_collection(collection) 
+        
+        # zoom in to ground truth
+        plt.savefig(os.path.join(save_path, '{}_overlay.png'.format(plot)),file_name=str(plot))    

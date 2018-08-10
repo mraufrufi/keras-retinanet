@@ -18,7 +18,7 @@ limitations under the License.
 from __future__ import print_function
 
 from .anchors import compute_overlap
-from .visualization import draw_detections, draw_annotations
+from .visualization import draw_detections, draw_annotations, draw_ground_overlap
 
 import numpy as np
 import os
@@ -29,12 +29,14 @@ import cv2
 import random
 import slidingwindow as sw
 
-#Plotting
+#Plotting and polygon overlap
+from shapely.ops import cascaded_union
 from shapely.geometry import box
+from shapely.geometry import shape
+from rtree import index
 import rasterio
-import rasterio.plot
-import matplotlib as mpl
-from descartes import PolygonPatch
+from scipy.optimize import linear_sum_assignment
+
 
 def _compute_ap(recall, precision):
     """ Compute the average precision, given the recall and precision curves.
@@ -251,7 +253,8 @@ def JaccardEvaluate(
     score_threshold=0.05,
     max_detections=100,
     save_path=None,
-    experiment=None
+    experiment=None,
+    config = None
 ):
     """ Evaluate a given dataset using a given model.
 
@@ -268,14 +271,14 @@ def JaccardEvaluate(
     """
     
     #Load ground truth polygons
-    ground_truth, ground_truth_tiles, ground_truth_utmbox=_load_groundtruth()
+    ground_truth, ground_truth_tiles, ground_truth_utmbox=_load_groundtruth(config)
     
     plot_IoU =[]
     
     for plot in ground_truth:
         
         #Load polygons
-        polys=ground_truth[plot]
+        polys=ground_truth[plot]["data"]
         
         #read rgb tile
         tile=ground_truth_tiles[plot]
@@ -306,66 +309,48 @@ def JaccardEvaluate(
             pbox=create_polygon(row, ground_truth_utmbox[plot],cell_size=0.1)
             projected_boxes.append(pbox)
         
-        #View overlap
-        with rasterio.open(ground_truth_tiles[plot]) as src:
-            rasterio.plot.show((src))
-            ax = mpl.pyplot.gca()
-            
-            #Truth
-            patches = [PolygonPatch(feature["geometry"]) for feature in ground_truth[plot]]
-            collection=mpl.collections.PatchCollection(patches)
-            collection.set_facecolor("none")    
-            collection.set_edgecolor("blue")            
-            ax.add_collection(collection)      
-            
-            #Predicted
-            pred_patches = [PolygonPatch(feature) for feature in projected_boxes]
-            collection=mpl.collections.PatchCollection(pred_patches)
-            collection.set_facecolor("none")
-            collection.set_edgecolor("red")            
-            ax.add_collection(collection)                        
+        if save_path is not None:
+            draw_ground_overlap(plot,ground_truth,ground_truth_tiles,projected_boxes,save_path=save_path)
+
+        #Match overlap and generate cost matrix and fill with non-zero elements
+        IoU=calculateIoU(ground_truth[plot], projected_boxes)
         
-        #Match Polygons
+        plot_IoU[plot]=IoU
         
-        #overlap_matrix=np.zeros((len(ground_truth,len(all_detections))))
-        
-        #Select IoU
-        
-        #mean IoU
-        
-        #plot_IoU.append(mean_IoU)
-        
-           
-    #if True:
-    #    raise Exception("Hold up")
+    #Mean IoU across all plots
+    meanIoU=np.mean(list(plot_IoU.values()))
+    return meanIoU
     
-    #create overlap matrix, fill with zeros
-    
-    #return np.mean(plot_IoU)
 
 
 #load ground truth polygons and tiles
-def _load_groundtruth():
+def _load_groundtruth(config):
     
     #Returns ground truth polygons, path to tif files, and bounding boxes
     #TODO these should be config settings
     
     ground_truth={}
     
-    shps=glob.glob("/Users/ben/Documents/TreeSegmentation/data/ITCs/*/*.shp",recursive=True)
+    shps=glob.glob(config["itc_path"],recursive=True)
     
     for shp in shps:
+        
+        items = {}
+        
         #Read polygons
         with fiona.open(shp,"r") as source:
+            
+            items["data"] = list(source)
+            items["bounds"] = source.bounds
             #Label by plot ID, all records are from the same plot
-            ground_truth[source[0]["properties"]["Plot_ID"]]=list(source)
+            ground_truth[source[0]["properties"]["Plot_ID"]]=items
+            
     
     #Corresponding tiles
     ground_truth_tiles={}
-    tile_path="/Users/ben/Documents/TreeSegmentation/data/2017/Camera/L3/"
         
     for plot in ground_truth:
-        ground_truth_tiles[plot]= tile_path + plot + ".tif"
+        ground_truth_tiles[plot]= config["itc_tile_path"] + plot + ".tif"
     
     #Find extent of each tile for projection
     ground_truth_utmbox = {}
@@ -394,32 +379,6 @@ def _load_groundtruth():
 
 
 #IoU for non-rectangular polygons
-def IoU_polygon(ground_truth,predictions):
-    
-    from shapely.ops import cascaded_union
-    from rtree import index
-    idx = index.Index()
-    
-    # Populate R-tree index with bounds of grid cells
-    for pos, cell in enumerate(grid_cells):
-        # assuming cell is a shapely object
-        idx.insert(pos, cell.bounds)
-    
-    # Loop through each Shapely polygon
-    for poly in polygons:
-        # Merge cells that have overlapping bounding boxes
-        merged_cells = cascaded_union([grid_cells[pos] for pos in idx.intersection(poly.bounds)])
-        
-        #Area of predicted box
-        predicted_area=1
-        
-        #Area of ground truth polygon
-        polygon_area=1
-        
-        # Area of intersection
-        print(poly.intersection(merged_cells).area)
-        
-        iou = intersection_area / float(predicted_area + polygon_area - intersection_area)
         
 def compute_windows(numpy_image,pixels=400,overlap=0.05):
     windows = sw.generate(numpy_image, sw.DimOrder.HeightWidthChannel, pixels,overlap )
@@ -558,3 +517,62 @@ def create_polygon(row,bounds,cell_size):
     b = box(x1, y1, x2, y2)
     
     return(b)
+
+def calculateIoU(itcs,predictions):
+    '''
+    1) Find overlap among polygons efficiently 
+    2) Calulate a cost matrix of overlap, with rows as itcs and columns as predictions
+    3) Hungarian matching for pairing
+    4) Calculate intersection over union (IoU)
+    5) Mean IoU returned.
+    '''
+    # Populate R-tree index with bounds of prediction boxes
+    idx = index.Index()
+    
+    for pos, cell in enumerate(predictions):
+        # assuming cell is a shapely object
+        idx.insert(pos, cell.bounds)
+    
+    #Create polygons
+    itc_polygons=[shape(x["geometry"]) for x in itcs["data"]]
+
+    overlap_dict={}
+    
+    #select predictions that overlap with the polygons
+    matched=[x for x in idx.intersection(itc["bounds"])]
+    
+    #Create a container
+    cost_matrix=np.zeros((len(itc_polygons),len(matched)))
+    
+    for x,poly in enumerate(itc_polygons):    
+        for y,match in enumerate(matched):
+            cost_matrix[x,y]= poly.intersection(predictions[match]).area
+    
+    #Assign polygon pairs
+    assignments=linear_sum_assignment(cost_matrix)
+    
+    #Loop through pairs and calculate IoU
+    iou_list=[]
+    for index in np.arange(len(assignments[0])):        
+        a=itc_polygons[assignments[0][index]]
+        b=predictions[matched[assignments[1][index]]]
+        iou=IoU_polygon(a,b)
+        iou_list.append(iou)
+    
+    return iou_list
+
+        
+def IoU_polygon(a,b):
+    
+    #Area of predicted box
+    predicted_area=b.area
+    
+    #Area of ground truth polygon
+    polygon_area=a.area
+    
+    #Intersection
+    intersection_area=a.intersection(b).area
+        
+    iou = intersection_area / float(predicted_area + polygon_area - intersection_area)
+    
+    return iou

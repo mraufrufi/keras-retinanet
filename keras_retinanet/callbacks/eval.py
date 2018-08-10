@@ -89,7 +89,7 @@ class Evaluate(keras.callbacks.Callback):
             
         #Jaccard overlap
         # run evaluation
-        average_precisions = JaccardEvaluate(
+        jaccard_scores = JaccardEvaluate(
             self.generator,
             self.model,
             iou_threshold=self.iou_threshold,
