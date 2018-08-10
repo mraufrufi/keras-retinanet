@@ -273,7 +273,7 @@ def JaccardEvaluate(
     #Load ground truth polygons
     ground_truth, ground_truth_tiles, ground_truth_utmbox=_load_groundtruth(config)
     
-    plot_IoU =[]
+    plot_IoU ={}
     
     for plot in ground_truth:
         
@@ -300,7 +300,6 @@ def JaccardEvaluate(
                 experiment.log_image(os.path.join(save_path, '{}.png'.format(plot)),file_name=str(plot))
                 
         #Find overlap 
-        ## Filter?
         projected_boxes=[]
         
         for row in  final_boxes:
@@ -310,7 +309,7 @@ def JaccardEvaluate(
             projected_boxes.append(pbox)
         
         if save_path is not None:
-            draw_ground_overlap(plot,ground_truth,ground_truth_tiles,projected_boxes,save_path=save_path)
+            draw_ground_overlap(plot,ground_truth,ground_truth_tiles,projected_boxes,save_path=save_path,experiment=experiment)
 
         #Match overlap and generate cost matrix and fill with non-zero elements
         IoU=calculateIoU(ground_truth[plot], projected_boxes)
@@ -321,8 +320,6 @@ def JaccardEvaluate(
     meanIoU=np.mean(list(plot_IoU.values()))
     return meanIoU
     
-
-
 #load ground truth polygons and tiles
 def _load_groundtruth(config):
     
@@ -345,7 +342,6 @@ def _load_groundtruth(config):
             #Label by plot ID, all records are from the same plot
             ground_truth[source[0]["properties"]["Plot_ID"]]=items
             
-    
     #Corresponding tiles
     ground_truth_tiles={}
         
@@ -517,6 +513,21 @@ def create_polygon(row,bounds,cell_size):
     b = box(x1, y1, x2, y2)
     
     return(b)
+   
+def IoU_polygon(a,b):
+    
+    #Area of predicted box
+    predicted_area=b.area
+    
+    #Area of ground truth polygon
+    polygon_area=a.area
+    
+    #Intersection
+    intersection_area=a.intersection(b).area
+        
+    iou = intersection_area / float(predicted_area + polygon_area - intersection_area)
+    
+    return iou
 
 def calculateIoU(itcs,predictions):
     '''
@@ -539,40 +550,24 @@ def calculateIoU(itcs,predictions):
     overlap_dict={}
     
     #select predictions that overlap with the polygons
-    matched=[x for x in idx.intersection(itc["bounds"])]
+    matched=[predictions[x] for x in idx.intersection(itcs["bounds"])]
     
     #Create a container
     cost_matrix=np.zeros((len(itc_polygons),len(matched)))
     
     for x,poly in enumerate(itc_polygons):    
         for y,match in enumerate(matched):
-            cost_matrix[x,y]= poly.intersection(predictions[match]).area
+            cost_matrix[x,y]= poly.intersection(match).area
     
     #Assign polygon pairs
-    assignments=linear_sum_assignment(cost_matrix)
+    assignments=linear_sum_assignment(-1 *cost_matrix)
     
-    #Loop through pairs and calculate IoU
     iou_list=[]
-    for index in np.arange(len(assignments[0])):        
-        a=itc_polygons[assignments[0][index]]
-        b=predictions[matched[assignments[1][index]]]
+    
+    for i in np.arange(len(assignments[0])):        
+        a=itc_polygons[assignments[0][i]]
+        b=matched[assignments[1][i]]
         iou=IoU_polygon(a,b)
         iou_list.append(iou)
-    
-    return iou_list
-
         
-def IoU_polygon(a,b):
-    
-    #Area of predicted box
-    predicted_area=b.area
-    
-    #Area of ground truth polygon
-    polygon_area=a.area
-    
-    #Intersection
-    intersection_area=a.intersection(b).area
-        
-    iou = intersection_area / float(predicted_area + polygon_area - intersection_area)
-    
-    return iou
+    return(iou_list)

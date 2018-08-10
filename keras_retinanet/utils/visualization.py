@@ -104,7 +104,7 @@ def draw_annotations(image, annotations, color=(0, 255, 0), label_to_name=None):
 
         draw_box(image, a, color=c)
 
-def draw_ground_overlap(plot,ground_truth,ground_truth_tiles,projected_boxes,save_path):
+def draw_ground_overlap(plot, ground_truth, ground_truth_tiles, projected_boxes, save_path, experiment):
     
     
 
@@ -134,4 +134,10 @@ def draw_ground_overlap(plot,ground_truth,ground_truth_tiles,projected_boxes,sav
         ax.add_collection(collection) 
         
         # zoom in to ground truth
-        plt.savefig(os.path.join(save_path, '{}_overlay.png'.format(plot)),file_name=str(plot))    
+        filename=os.path.join(save_path, '{}_overlay.png'.format(plot))
+        
+        #get current plot
+        fig=plt.gcf()
+        
+        fig.savefig(filename)    
+        experiment.log_image(filename,file_name=str(plot))

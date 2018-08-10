@@ -86,10 +86,9 @@ class Evaluate(keras.callbacks.Callback):
         if self.verbose == 1:
             print('mAP: {:.4f}'.format(self.mean_ap))
             
-            
         #Jaccard overlap
         # run evaluation
-        jaccard_scores = JaccardEvaluate(
+        self.jaccard_scores = JaccardEvaluate(
             self.generator,
             self.model,
             iou_threshold=self.iou_threshold,
@@ -98,3 +97,6 @@ class Evaluate(keras.callbacks.Callback):
             save_path=self.save_path,
             experiment=self.experiment
         )        
+        
+        if self.verbose == 1:
+            print('jaccard: {:.4f}'.format(self.jaccard_scores))
