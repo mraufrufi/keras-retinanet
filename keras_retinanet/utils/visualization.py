@@ -106,31 +106,32 @@ def draw_annotations(image, annotations, color=(0, 255, 0), label_to_name=None):
 
 def draw_ground_overlap(plot, ground_truth, ground_truth_tiles, projected_boxes, save_path, experiment):
     
-    
 
     #set axis, 
     xmin,ymin,xmax,ymax=[int(x) for x in ground_truth[plot]["bounds"]]
     
     with rasterio.open(ground_truth_tiles[plot]) as src:
         
-        rasterio.plot.show((src))
+        
         ax = mpl.pyplot.gca()
-        
+    
         #Set axis with a bit of padding in meters
-        ax.axis([xmin-5,xmax+5,ymin-5,ymax+5])               
+        ax.axis([xmin-5,xmax+5,ymin-5,ymax+5])              
         
+        rasterio.plot.show(src,ax=ax)
+ 
         #Truth
         patches = [PolygonPatch(feature["geometry"]) for feature in ground_truth[plot]["data"]]
         collection=mpl.collections.PatchCollection(patches)
         collection.set_facecolor("none")    
-        collection.set_edgecolor("blue")            
+        collection.set_edgecolor("red")            
         ax.add_collection(collection)      
         
         #Predicted
         pred_patches = [PolygonPatch(feature) for feature in projected_boxes]
         collection=mpl.collections.PatchCollection(pred_patches)
         collection.set_facecolor("none")
-        collection.set_edgecolor("red")            
+        collection.set_edgecolor("blue")            
         ax.add_collection(collection) 
         
         # zoom in to ground truth
