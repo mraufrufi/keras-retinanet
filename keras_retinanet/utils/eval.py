@@ -441,7 +441,6 @@ def non_max_suppression(boxes, overlapThresh):
     # integer data type
     return pick
 
-
 def predict_tile(numpy_image,generator,model,score_threshold,max_detections):
     #get sliding windows
     windows=compute_windows(numpy_image)
