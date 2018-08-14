@@ -23,7 +23,7 @@ class Evaluate(keras.callbacks.Callback):
     """ Evaluation callback for arbitrary datasets.
     """
 
-    def __init__(self, generator, iou_threshold=0.5, score_threshold=0.05, max_detections=100, save_path=None, tensorboard=None, verbose=1,experiment=None):
+    def __init__(self, generator, iou_threshold=0.5, score_threshold=0.05, max_detections=100, save_path=None, tensorboard=None, verbose=1,experiment=None,config=None):
         """ Evaluate a given dataset using a given model at the end of every epoch during training.
 
         # Arguments
@@ -44,6 +44,7 @@ class Evaluate(keras.callbacks.Callback):
         self.tensorboard     = tensorboard
         self.verbose         = verbose
         self.experiment = experiment
+        self.config = config
 
         super(Evaluate, self).__init__()
 
@@ -86,17 +87,19 @@ class Evaluate(keras.callbacks.Callback):
         if self.verbose == 1:
             print('mAP: {:.4f}'.format(self.mean_ap))
             
-        #Jaccard overlap
-        # run evaluation
-        self.jaccard_scores = JaccardEvaluate(
-            self.generator,
-            self.model,
-            iou_threshold=self.iou_threshold,
-            score_threshold=self.score_threshold,
-            max_detections=self.max_detections,
-            save_path=self.save_path,
-            experiment=self.experiment
-        )        
+        #If the site is OSBS, perform ground truth comparison
+        site=os.path.split(os.path.normpath(config["training_csvs"]))[1]
         
-        if self.verbose == 1:
-            print('jaccard: {:.4f}'.format(self.jaccard_scores))
+        if site == "OSBS":
+            
+            #Jaccard overlap
+            jaccard = JaccardEvaluate(
+                self.generator,
+                self.model,
+                iou_threshold=self.iou_threshold,
+                score_threshold=self.score_threshold,
+                max_detections=self.max_detections,
+                save_path=self.save_path,
+                experiment=self.experiment,
+                config=self.config
+            )        
