@@ -36,6 +36,7 @@ from shapely.geometry import shape
 from rtree import index
 import rasterio
 from scipy.optimize import linear_sum_assignment
+from itertools import chain
 
 
 def _compute_ap(recall, precision):
@@ -317,7 +318,9 @@ def JaccardEvaluate(
         plot_IoU[plot]=IoU
         
     #Mean IoU across all plots
-    meanIoU=np.mean(list(plot_IoU.values()))
+    #Mean IoU across all plots
+    all_values=list(plot_IoU.values())
+    meanIoU=np.mean(list(chain(*all_values)))
     return meanIoU
     
 #load ground truth polygons and tiles
