@@ -21,9 +21,14 @@ from .colors import label_color
 
 import rasterio.plot
 import matplotlib as mpl
+import os
+
+if os.environ.get('DISPLAY','') == '':
+    print('no display found. Using non-interactive Agg backend')
+    mpl.use('Agg')
+    
 from descartes import PolygonPatch
 from matplotlib import pyplot as plt
-import os
 
 def draw_box(image, box, color, thickness=1):
     """ Draws a box on an image with a given color.
