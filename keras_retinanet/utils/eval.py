@@ -278,6 +278,8 @@ def JaccardEvaluate(
     
     for plot in ground_truth:
         
+        print(plot)
+        
         #Load polygons
         polys=ground_truth[plot]["data"]
         
@@ -484,7 +486,7 @@ def predict_tile(numpy_image,generator,model,score_threshold,max_detections):
             print("no detections")
             mean_IoU=0
         else:
-            print( "%d" % (len(image_detections)))
+            #print( "%d" % (len(image_detections)))
                 
             #align detections to original image
             x,y,w,h=window.getRect()

@@ -17,7 +17,7 @@ limitations under the License.
 import keras
 from ..utils.eval import evaluate
 from ..utils.eval import JaccardEvaluate
-
+import os
 
 class Evaluate(keras.callbacks.Callback):
     """ Evaluation callback for arbitrary datasets.
