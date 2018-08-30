@@ -88,7 +88,7 @@ class Evaluate(keras.callbacks.Callback):
             print('mAP: {:.4f}'.format(self.mean_ap))
             
         #If the site is OSBS, perform ground truth comparison
-        site=os.path.split(os.path.normpath(config["training_csvs"]))[1]
+        site=os.path.split(os.path.normpath(self.config["training_csvs"]))[1]
         
         if site == "OSBS":
             
