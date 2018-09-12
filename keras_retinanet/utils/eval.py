@@ -292,14 +292,17 @@ def JaccardEvaluate(
         
         #Gather detections
         final_boxes=predict_tile(numpy_image,generator,model,score_threshold,max_detections)
-        draw_detections(numpy_image, final_boxes[:,:4], final_boxes[:,4], final_boxes[:,5], label_to_name=generator.label_to_name,score_threshold=0.05,color=(255,0,0))  
+        
+        #if empty, skip
+        if not final_boxes:
+            continue 
         
         #Save image and send it to logger
         if save_path is not None:
             draw_detections(numpy_image, final_boxes[:,:4], final_boxes[:,4], final_boxes[:,5], label_to_name=generator.label_to_name,score_threshold=0.05)
             cv2.imwrite(os.path.join(save_path, '{}.png'.format(plot)), numpy_image)
             if experiment:              
-                experiment.log_image(os.path.join(save_path, '{}.png'.format(plot)),file_name=str(plot))
+                experiment.log_image(os.path.join(save_path, '{}.png'.format(plot)),file_name=str(plot)+"groundtruth")
                 
         #Find overlap 
         projected_boxes=[]
@@ -485,24 +488,26 @@ def predict_tile(numpy_image,generator,model,score_threshold,max_detections):
         image_labels     = labels[0, indices[scores_sort]]
         image_detections = np.concatenate([image_boxes, np.expand_dims(image_scores, axis=1), np.expand_dims(image_labels, axis=1)], axis=1)
         
+        #Stop if no predictions
         if len(image_detections)==0:
-            print("no detections")
-            mean_IoU=0
-        else:
-            #print( "%d" % (len(image_detections)))
+            continue
                 
-            #align detections to original image
-            x,y,w,h=window.getRect()
-            
-            #boxes are in form x1, y1, x2, y2
-            image_detections[:,0] = image_detections[:,0] + x 
-            image_detections[:,1] = image_detections[:,1] + y 
-            image_detections[:,2] = image_detections[:,2] + x 
-            image_detections[:,3] = image_detections[:,3] + y 
-            
-            #Collect detection across windows
-            plot_detections.append(image_detections)                
+        #align detections to original image
+        x,y,w,h=window.getRect()
+        
+        #boxes are in form x1, y1, x2, y2
+        image_detections[:,0] = image_detections[:,0] + x 
+        image_detections[:,1] = image_detections[:,1] + y 
+        image_detections[:,2] = image_detections[:,2] + x 
+        image_detections[:,3] = image_detections[:,3] + y 
+        
+        #Collect detection across windows
+        plot_detections.append(image_detections)                
     
+    #If no predictions in any window
+    if len(plot_detections)==0:
+        return None
+        
     #Non-max supression
     all_boxes=np.concatenate(plot_detections)
     final_box_index=non_max_suppression(all_boxes[:,:4], overlapThresh=0.2)
@@ -580,6 +585,7 @@ def calculateIoU(itcs,predictions):
         
     return(iou_list)
 
+#field data validation
 
 def neonRecall(
     site,
@@ -600,25 +606,27 @@ def neonRecall(
     site_data=field_data[field_data["siteID"]==site]
     plots=site_data.plotID.unique()
     
+    site_recalls=[]
+    
     for plot in plots:
             
         #select plot
-        plot_data=site_data[site_data["plotID"]==plotID]
+        plot_data=site_data[site_data["plotID"]==plot]
     
         #load plot image
         tile="data/" + site + "/" + plot + ".tif"
         numpy_image=load_image(tile)
          
         #Gather detections
-        final_boxes=predict_tile(numpy_image,generator,model,score_threshold,max_detections)
-        draw_detections(numpy_image, final_boxes[:,:4], final_boxes[:,4], final_boxes[:,5], label_to_name=generator.label_to_name,score_threshold=0.05,color=(255,0,0))  
-        
+        final_boxes=predict_tile(numpy_image,generator,model,score_threshold,max_detections)            
+            
         #Save image and send it to logger
         if save_path is not None:
             draw_detections(numpy_image, final_boxes[:,:4], final_boxes[:,4], final_boxes[:,5], label_to_name=generator.label_to_name,score_threshold=0.05)
-            cv2.imwrite(os.path.join(save_path, '{}.png'.format(plot)), numpy_image)
-            if experiment:              
-                experiment.log_image(os.path.join(save_path, '{}.png'.format(plot)),file_name=str(plot))
+            #add points
+            cv2.imwrite(os.path.join(save_path, '{}_NeonPlot.png'.format(plot)), numpy_image)
+            if experiment:
+                experiment.log_image(os.path.join(save_path, '{}_NeonPlot.png'.format(plot)),file_name=str(plot))
                 
         #Find geographic bounds
         with rasterio.open(tile) as dataset:
@@ -631,6 +639,7 @@ def neonRecall(
             projected_boxes.append(pbox)
             
         #for each point
+        point_contains=[]
         for index,tree in plot_data.iterrows():
             p=Point(tree.UTM_E,tree.UTM_N)
             
@@ -638,7 +647,14 @@ def neonRecall(
             
             for prediction in projected_boxes:
                 within_polygon.append(p.within(prediction))
+            
+            #Check for overlapping polygon, add it to list
+            point_contains.append(sum(within_polygon) > 0)
         
-        #Check for overlapping polygon
-        
-        ## Recall rate
+        ## Recall rate for plot
+        recall=sum(point_contains)/len(point_contains)
+        site_recalls.append(recall)
+    
+    #recall across plots    
+    average_recall=np.mean(site_recalls)
+    return(average_recall)
