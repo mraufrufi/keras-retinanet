@@ -38,6 +38,9 @@ import rasterio
 from scipy.optimize import linear_sum_assignment
 from itertools import chain
 
+#NEON recall rate
+import pandas as pd
+from shapely.geometry import Point
 
 def _compute_ap(recall, precision):
     """ Compute the average precision, given the recall and precision curves.
@@ -285,11 +288,7 @@ def JaccardEvaluate(
         
         #read rgb tile
         tile=ground_truth_tiles[plot]
-        im = Image.open(tile)
-        numpy_image = np.array(im)
-        
-        #BGR order
-        numpy_image=numpy_image[:,:,::-1].copy()
+        numpy_image=load_image(tile)
         
         #Gather detections
         final_boxes=predict_tile(numpy_image,generator,model,score_threshold,max_detections)
@@ -328,9 +327,7 @@ def JaccardEvaluate(
 #load ground truth polygons and tiles
 def _load_groundtruth(config):
     
-    #Returns ground truth polygons, path to tif files, and bounding boxes
-    #TODO these should be config settings
-    
+    #Returns ground truth polygons, path to tif files, and bounding boxes    
     ground_truth={}
     
     shps=glob.glob(config["itc_path"],recursive=True)
@@ -378,7 +375,6 @@ def _load_groundtruth(config):
            ground_truth_utmbox
            )
 
-
 #IoU for non-rectangular polygons
         
 def compute_windows(numpy_image,pixels=400,overlap=0.05):
@@ -389,6 +385,13 @@ def retrieve_window(numpy_image,window):
     crop=numpy_image[window.indices()]
     return(crop)
 
+def load_image(tile):
+    im = Image.open(tile)
+    numpy_image = np.array(im)
+
+    #BGR order
+    numpy_image=numpy_image[:,:,::-1].copy()
+    return(numpy_image)
 
 def non_max_suppression(boxes, overlapThresh):
     # if there are no boxes, return an empty list
@@ -534,6 +537,7 @@ def IoU_polygon(a,b):
     return iou
 
 def calculateIoU(itcs,predictions):
+    
     '''
     1) Find overlap among polygons efficiently 
     2) Calulate a cost matrix of overlap, with rows as itcs and columns as predictions
@@ -575,3 +579,66 @@ def calculateIoU(itcs,predictions):
         iou_list.append(iou)
         
     return(iou_list)
+
+
+def neonRecall(
+    site,
+    generator,
+    model,
+    iou_threshold=0.5,
+    score_threshold=0.05,
+    max_detections=100,
+    save_path=None,
+    experiment=None,
+    config = None
+):
+    
+    #load field data
+    field_data=pd.read_csv("data/field_data.csv") 
+    
+    #select site
+    site_data=field_data[field_data["siteID"]==site]
+    plots=site_data.plotID.unique()
+    
+    for plot in plots:
+            
+        #select plot
+        plot_data=site_data[site_data["plotID"]==plotID]
+    
+        #load plot image
+        tile="data/" + site + "/" + plot + ".tif"
+        numpy_image=load_image(tile)
+         
+        #Gather detections
+        final_boxes=predict_tile(numpy_image,generator,model,score_threshold,max_detections)
+        draw_detections(numpy_image, final_boxes[:,:4], final_boxes[:,4], final_boxes[:,5], label_to_name=generator.label_to_name,score_threshold=0.05,color=(255,0,0))  
+        
+        #Save image and send it to logger
+        if save_path is not None:
+            draw_detections(numpy_image, final_boxes[:,:4], final_boxes[:,4], final_boxes[:,5], label_to_name=generator.label_to_name,score_threshold=0.05)
+            cv2.imwrite(os.path.join(save_path, '{}.png'.format(plot)), numpy_image)
+            if experiment:              
+                experiment.log_image(os.path.join(save_path, '{}.png'.format(plot)),file_name=str(plot))
+                
+        #Find geographic bounds
+        with rasterio.open(tile) as dataset:
+            bounds=dataset.bounds   
+        
+        projected_boxes = []
+        for row in  final_boxes:
+            #Add utm bounds and create a shapely polygon
+            pbox=create_polygon(row, bounds,cell_size=0.1)
+            projected_boxes.append(pbox)
+            
+        #for each point
+        for index,tree in plot_data.iterrows():
+            p=Point(tree.UTM_E,tree.UTM_N)
+            
+            within_polygon=[]
+            
+            for prediction in projected_boxes:
+                within_polygon.append(p.within(prediction))
+        
+        #Check for overlapping polygon
+        
+        ## Recall rate
