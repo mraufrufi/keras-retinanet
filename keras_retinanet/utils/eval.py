@@ -607,7 +607,6 @@ def neonRecall(
     
     #select site
     site_data=field_data[field_data["siteID"]==site]
-    plots=site_data.plotID.unique()
     
     #select tree species
     specieslist=pd.read_csv("data/AcceptedSpecies.csv")
@@ -619,7 +618,10 @@ def neonRecall(
     site_data=site_data[site_data["individualID"].str.contains("\d$")]
     
     #Only data within the last two years, sites can be hand managed
-    site_data=site_data[site_data["eventID"].str.contains("2016|2017|2018")]
+    #site_data=site_data[site_data["eventID"].str.contains("2015|2016|2017|2018")]
+    
+    #Get remaining plots
+    plots=site_data.plotID.unique()
     
     site_recalls=[]
     
@@ -682,4 +684,8 @@ def neonRecall(
     
     #recall across plots    
     average_recall=np.mean(site_recalls)
+    
+    print('{}/{}'.format(i + 1, generator.size()), end='\r')
+    
+    print(f"Average recall is {average_recall:.2f}")
     return(average_recall)
