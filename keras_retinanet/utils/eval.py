@@ -41,6 +41,7 @@ from itertools import chain
 #NEON recall rate
 import pandas as pd
 from shapely.geometry import Point
+from matplotlib import pyplot
 
 def _compute_ap(recall, precision):
     """ Compute the average precision, given the recall and precision curves.
@@ -119,6 +120,7 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100, 
         if save_path is not None:
             draw_annotations(raw_image, generator.load_annotations(i), label_to_name=generator.label_to_name)
             draw_detections(raw_image, image_boxes, image_scores, image_labels, label_to_name=generator.label_to_name,score_threshold=0.4)
+                        
             cv2.imwrite(os.path.join(save_path, '{}.png'.format(i)), raw_image)
             if experiment:              
                 experiment.log_image(os.path.join(save_path, '{}.png'.format(i)),file_name=str(i))
@@ -601,10 +603,23 @@ def neonRecall(
     
     #load field data
     field_data=pd.read_csv("data/field_data.csv") 
+    field_data=field_data[field_data['UTM_E'].notnull()]
     
     #select site
     site_data=field_data[field_data["siteID"]==site]
     plots=site_data.plotID.unique()
+    
+    #select tree species
+    specieslist=pd.read_csv("data/AcceptedSpecies.csv")
+    specieslist =  specieslist[specieslist["siteID"]==site]
+    
+    site_data=site_data[site_data["scientificName"].isin(specieslist["scientificName"].values)]
+    
+    #Single bole individuals as representitve, no individualID ending in non-digits
+    site_data=site_data[site_data["individualID"].str.contains("\d$")]
+    
+    #Only data within the last two years, sites can be hand managed
+    site_data=site_data[site_data["eventID"].str.contains("2016|2017|2018")]
     
     site_recalls=[]
     
@@ -623,18 +638,24 @@ def neonRecall(
         #If empty, skip.
         if final_boxes is None:
             continue
-        
-        #Save image and send it to logger
-        if save_path is not None:
-            draw_detections(numpy_image, final_boxes[:,:4], final_boxes[:,4], final_boxes[:,5], label_to_name=generator.label_to_name,score_threshold=0.05)
-            #add points
-            cv2.imwrite(os.path.join(save_path, '{}_NeonPlot.png'.format(plot)), numpy_image)
-            if experiment:
-                experiment.log_image(os.path.join(save_path, '{}_NeonPlot.png'.format(plot)),file_name=str(plot))
                 
         #Find geographic bounds
         with rasterio.open(tile) as dataset:
             bounds=dataset.bounds   
+        
+        #Save image and send it to logger
+        if save_path is not None:
+            draw_detections(numpy_image, final_boxes[:,:4], final_boxes[:,4], final_boxes[:,5], label_to_name=generator.label_to_name,score_threshold=0.05)
+            
+            #add points
+            x=(plot_data.UTM_E- bounds.left).values/0.1
+            y=(bounds.top - plot_data.UTM_N).values/0.1
+            for i in np.arange(len(x)):
+                cv2.circle(numpy_image,(int(x[i]),int(y[i])), 5, (0,0,255), 1)
+
+            cv2.imwrite(os.path.join(save_path, '{}_NeonPlot.png'.format(plot)), numpy_image)
+            if experiment:
+                experiment.log_image(os.path.join(save_path, '{}_NeonPlot.png'.format(plot)),file_name=str(plot))            
         
         projected_boxes = []
         for row in  final_boxes:
