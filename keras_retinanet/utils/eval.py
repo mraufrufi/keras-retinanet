@@ -295,10 +295,6 @@ def JaccardEvaluate(
         #Gather detections
         final_boxes=predict_tile(numpy_image,generator,model,score_threshold,max_detections)
         
-        #if empty, skip
-        if not final_boxes:
-            continue 
-        
         #Save image and send it to logger
         if save_path is not None:
             draw_detections(numpy_image, final_boxes[:,:4], final_boxes[:,4], final_boxes[:,5], label_to_name=generator.label_to_name,score_threshold=0.05)
