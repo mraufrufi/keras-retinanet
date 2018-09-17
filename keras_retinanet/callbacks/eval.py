@@ -107,14 +107,14 @@ class Evaluate(keras.callbacks.Callback):
         ##Neon plot recall rate
         recall = neonRecall(
             site,
-            generator,
-            model,
-            iou_threshold=args.iou_threshold,
+            self.generator,
+            self.model,
+            iou_threshold=self.iou_threshold,
             score_threshold=args.score_threshold,
-            max_detections=args.max_detections,
-            save_path=args.save_path + dirname,
-            experiment=experiment,
-            config=config
+            max_detections=self.max_detections,
+            save_path=self.save_path,
+            experiment=self.experiment,
+            config=self.config
         )    
         
         experiment.log_metric("Recall", recall)  
