@@ -117,3 +117,5 @@ class Evaluate(keras.callbacks.Callback):
             config=self.config
         )    
         
+        self.experiment.log_metric("Recall", recall)    
+        
