@@ -681,8 +681,6 @@ def neonRecall(
     
     #recall across plots    
     average_recall=np.mean(site_recalls)
-    
-    print('{}/{}'.format(i + 1, generator.size()), end='\r')
-    
+        
     print(f"Average recall is {average_recall:.2f}")
     return(average_recall)
