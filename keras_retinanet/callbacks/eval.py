@@ -110,7 +110,7 @@ class Evaluate(keras.callbacks.Callback):
             self.generator,
             self.model,
             iou_threshold=self.iou_threshold,
-            score_threshold=args.score_threshold,
+            score_threshold=self.score_threshold,
             max_detections=self.max_detections,
             save_path=self.save_path,
             experiment=self.experiment,
