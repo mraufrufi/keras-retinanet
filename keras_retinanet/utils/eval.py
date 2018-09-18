@@ -258,6 +258,7 @@ def JaccardEvaluate(
     iou_threshold=0.5,
     score_threshold=0.05,
     max_detections=100,
+    suppression_threshold=0.2,
     save_path=None,
     experiment=None,
     config = None
@@ -293,7 +294,7 @@ def JaccardEvaluate(
         numpy_image=load_image(tile)
         
         #Gather detections
-        final_boxes=predict_tile(numpy_image,generator,model,score_threshold,max_detections)
+        final_boxes=predict_tile(numpy_image,generator,model,score_threshold,max_detections,suppression_threshold)
         
         #Save image and send it to logger
         if save_path is not None:
@@ -451,7 +452,7 @@ def non_max_suppression(boxes, overlapThresh):
     return pick
 
 
-def predict_tile(numpy_image,generator,model,score_threshold,max_detections):
+def predict_tile(numpy_image,generator,model,score_threshold,max_detections,suppression_threshold):
     #get sliding windows
     windows=compute_windows(numpy_image)
     
@@ -509,7 +510,7 @@ def predict_tile(numpy_image,generator,model,score_threshold,max_detections):
         
     #Non-max supression
     all_boxes=np.concatenate(plot_detections)
-    final_box_index=non_max_suppression(all_boxes[:,:4], overlapThresh=0.2)
+    final_box_index=non_max_suppression(all_boxes[:,:4], overlapThresh=suppression_threshold)
     final_boxes=all_boxes[final_box_index,:]
     return final_boxes
 
@@ -593,6 +594,7 @@ def neonRecall(
     iou_threshold=0.5,
     score_threshold=0.05,
     max_detections=100,
+    suppression_threshold=0.2,
     save_path=None,
     experiment=None,
     config = None
@@ -631,7 +633,7 @@ def neonRecall(
         numpy_image=load_image(tile)
          
         #Gather detections
-        final_boxes=predict_tile(numpy_image,generator,model,score_threshold,max_detections)            
+        final_boxes=predict_tile(numpy_image,generator,model,score_threshold,max_detections,suppression_threshold)            
         
         #If empty, skip.
         if final_boxes is None:
