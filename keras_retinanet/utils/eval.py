@@ -674,7 +674,10 @@ def neonRecall(
             #Check for overlapping polygon, add it to list
             point_contains.append(sum(within_polygon) > 0)
         
-    ## Recall rate for plot
-    recall=sum(point_contains)/len(point_contains)
-       
+    if len(point_contains)==0:
+        recall=0
+    else:
+        ## Recall rate for plot
+        recall=sum(point_contains)/len(point_contains)
+           
     return(recall)
