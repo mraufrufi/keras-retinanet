@@ -620,8 +620,7 @@ def neonRecall(
     #Get remaining plots
     plots=site_data.plotID.unique()
     
-    site_recalls=[]
-    
+    point_contains=[]
     for plot in plots:
             
         #select plot
@@ -663,7 +662,7 @@ def neonRecall(
             projected_boxes.append(pbox)
             
         #for each point
-        point_contains=[]
+
         for index,tree in plot_data.iterrows():
             p=Point(tree.UTM_E,tree.UTM_N)
             
@@ -675,12 +674,7 @@ def neonRecall(
             #Check for overlapping polygon, add it to list
             point_contains.append(sum(within_polygon) > 0)
         
-        ## Recall rate for plot
-        recall=sum(point_contains)/len(point_contains)
-        site_recalls.append(recall)
-    
-    #recall across plots    
-    average_recall=np.mean(site_recalls)
-        
-    print(f"Average recall is {average_recall:.2f}")
-    return(average_recall)
+    ## Recall rate for plot
+    recall=sum(point_contains)/len(point_contains)
+       
+    return(recall)
