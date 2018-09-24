@@ -101,6 +101,7 @@ def _read_annotations(data,base_dir,windows,config,shuffle):
         groups = [df for _, df in tile_data.groupby('image')]
         groups=[x.sample(frac=1) for x in groups]
         tile_data=pd.concat(groups).reset_index(drop=True)
+    
         
     image_dict=tile_data.to_dict("index")
     return(image_dict)
@@ -225,6 +226,7 @@ class OnTheFlyGenerator(Generator):
 
     def __init__(
         self,
+        window_list,
         csv_data_file,
         config,
         base_dir=None,
