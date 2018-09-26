@@ -38,19 +38,8 @@ from .. import models
 from ..callbacks import RedirectModel
 from ..callbacks.eval import Evaluate
 from ..models.retinanet import retinanet_bbox
-<<<<<<< HEAD
 from ..utils.anchors import make_shapes_callback, anchor_targets_bbox
-=======
-from ..preprocessing.csv_generator import CSVGenerator
-from ..preprocessing.kitti import KittiGenerator
-from ..preprocessing.open_images import OpenImagesGenerator
-from ..preprocessing.pascal_voc import PascalVocGenerator
-from ..utils.anchors import make_shapes_callback
-<<<<<<< HEAD
->>>>>>> 3f62e8c2c4b0766176237476ed157ce72c9f09cb
-=======
 from ..utils.config import read_config_file, parse_anchor_parameters
->>>>>>> e197dc21e5dc77e5d03435d1ff7661fca2c3b5a9
 from ..utils.keras_version import check_keras_version
 from ..utils.model import freeze as freeze_model
 from ..utils.transform import random_transform_generator
@@ -241,40 +230,7 @@ def create_generators(args, preprocess_image):
     else:
         transform_generator = random_transform_generator(flip_x_chance=0.5)
 
-<<<<<<< HEAD
     if args.dataset_type == 'csv':
-=======
-    if args.dataset_type == 'coco':
-        # import here to prevent unnecessary dependency on cocoapi
-        from ..preprocessing.coco import CocoGenerator
-
-        train_generator = CocoGenerator(
-            args.coco_path,
-            'train2017',
-            transform_generator=transform_generator,
-            **common_args
-        )
-
-        validation_generator = CocoGenerator(
-            args.coco_path,
-            'val2017',
-            **common_args
-        )
-    elif args.dataset_type == 'pascal':
-        train_generator = PascalVocGenerator(
-            args.pascal_path,
-            'trainval',
-            transform_generator=transform_generator,
-            **common_args
-        )
-
-        validation_generator = PascalVocGenerator(
-            args.pascal_path,
-            'test',
-            **common_args
-        )
-    elif args.dataset_type == 'csv':
->>>>>>> 3f62e8c2c4b0766176237476ed157ce72c9f09cb
         train_generator = CSVGenerator(
             args.annotations,
             args.classes,
@@ -290,7 +246,6 @@ def create_generators(args, preprocess_image):
             )
         else:
             validation_generator = None
-<<<<<<< HEAD
 
     elif args.dataset_type == 'onthefly':
         train_generator = OnTheFlyGenerator(
@@ -301,41 +256,6 @@ def create_generators(args, preprocess_image):
             validation_generaton=OnTheFlyGenerator(
             args.val_annotations,
             batch_size=args.batch_size,
-=======
-    elif args.dataset_type == 'oid':
-        train_generator = OpenImagesGenerator(
-            args.main_dir,
-            subset='train',
-            version=args.version,
-            labels_filter=args.labels_filter,
-            annotation_cache_dir=args.annotation_cache_dir,
-            parent_label=args.parent_label,
-            transform_generator=transform_generator,
-            **common_args
-        )
-
-        validation_generator = OpenImagesGenerator(
-            args.main_dir,
-            subset='validation',
-            version=args.version,
-            labels_filter=args.labels_filter,
-            annotation_cache_dir=args.annotation_cache_dir,
-            parent_label=args.parent_label,
-            **common_args
-        )
-    elif args.dataset_type == 'kitti':
-        train_generator = KittiGenerator(
-            args.kitti_path,
-            subset='train',
-            transform_generator=transform_generator,
-            **common_args
-        )
-
-        validation_generator = KittiGenerator(
-            args.kitti_path,
-            subset='val',
-            **common_args
->>>>>>> 3f62e8c2c4b0766176237476ed157ce72c9f09cb
         )
         else:
             validation_generator=None
@@ -398,7 +318,7 @@ def parse_args(args):
     csv_parser = subparsers.add_parser('onthefly')
     csv_parser.add_argument('annotations', help='Path to CSV file containing annotations for training.')
     csv_parser.add_argument('--val-annotations', help='Path to CSV file containing annotations for validation (optional).')
-    
+
     csv_parser = subparsers.add_parser('csv')
     csv_parser.add_argument('annotations', help='Path to CSV file containing annotations for training.')
     csv_parser.add_argument('classes', help='Path to a CSV file containing class label mapping.')
@@ -512,5 +432,5 @@ if __name__ == '__main__':
     #ToDo Log experiment
     #set experiment and log configs
     #experiment = Experiment(api_key="ypQZhYfs3nSyKzOfz13iuJpj2",project_name='retinanet')
-    
+
     main()

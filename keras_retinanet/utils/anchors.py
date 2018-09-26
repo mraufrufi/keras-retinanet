@@ -95,7 +95,6 @@ def anchor_targets_bbox(
 
             labels_batch[index, ignore_indices, -1]       = -1
             labels_batch[index, positive_indices, -1]     = 1
-<<<<<<< HEAD
 
             regression_batch[index, ignore_indices, -1]   = -1
             regression_batch[index, positive_indices, -1] = 1
@@ -148,60 +147,6 @@ def compute_gt_annotations(
     positive_indices = max_overlaps >= positive_overlap
     ignore_indices = (max_overlaps > negative_overlap) & ~positive_indices
 
-=======
-
-            regression_batch[index, ignore_indices, -1]   = -1
-            regression_batch[index, positive_indices, -1] = 1
-
-            # compute box regression targets
-            annotations = annotations[argmax_overlaps_inds]
-            annotations_batch[index, ...] = annotations
-
-            # compute target class labels
-            labels_batch[index, positive_indices, annotations[positive_indices, 4].astype(int)] = 1
-
-            regression_batch[index, :, :-1] = bbox_transform(anchors, annotations)
-
-        # ignore annotations outside of image
-        if image.shape:
-            anchors_centers = np.vstack([(anchors[:, 0] + anchors[:, 2]) / 2, (anchors[:, 1] + anchors[:, 3]) / 2]).T
-            indices = np.logical_or(anchors_centers[:, 0] >= image.shape[1], anchors_centers[:, 1] >= image.shape[0])
-
-            labels_batch[index, indices, -1]     = - 1
-            regression_batch[index, indices, -1] = -1
-
-    return labels_batch, regression_batch, annotations_batch
-
-
-def compute_gt_annotations(
-    anchors,
-    annotations,
-    negative_overlap=0.4,
-    positive_overlap=0.5
-):
-    """ Obtain indices of gt annotations with the greatest overlap.
-
-    Args
-        anchors: np.array of annotations of shape (N, 4) for (x1, y1, x2, y2).
-        annotations: np.array of shape (N, 5) for (x1, y1, x2, y2, label).
-        negative_overlap: IoU overlap for negative anchors (all anchors with overlap < negative_overlap are negative).
-        positive_overlap: IoU overlap or positive anchors (all anchors with overlap > positive_overlap are positive).
-
-    Returns
-        positive_indices: indices of positive anchors
-        ignore_indices: indices of ignored anchors
-        argmax_overlaps_inds: ordered overlaps indices
-    """
-
-    overlaps = compute_overlap(anchors.astype(np.float64), annotations.astype(np.float64))
-    argmax_overlaps_inds = np.argmax(overlaps, axis=1)
-    max_overlaps = overlaps[np.arange(overlaps.shape[0]), argmax_overlaps_inds]
-
-    # assign "dont care" labels
-    positive_indices = max_overlaps >= positive_overlap
-    ignore_indices = (max_overlaps > negative_overlap) & ~positive_indices
-
->>>>>>> e197dc21e5dc77e5d03435d1ff7661fca2c3b5a9
     return positive_indices, ignore_indices, argmax_overlaps_inds
 
 
