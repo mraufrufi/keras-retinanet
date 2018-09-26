@@ -23,7 +23,7 @@ class Evaluate(keras.callbacks.Callback):
     """ Evaluation callback for arbitrary datasets.
     """
 
-    def __init__(self, generator, iou_threshold=0.5, score_threshold=0.05, max_detections=100, suppression_threshold=0.2,save_path=None, tensorboard=None, verbose=1,experiment=None,config=None):
+    def __init__(self, generator, iou_threshold=0.5, score_threshold=0.05, max_detections=100, suppression_threshold=0.2,save_path=None, tensorboard=None, weighted_average=False, verbose=1,experiment=None,DeepForest_config=None):
         """ Evaluate a given dataset using a given model at the end of every epoch during training.
 
         # Arguments
@@ -47,7 +47,7 @@ class Evaluate(keras.callbacks.Callback):
         self.weighted_average = weighted_average
         self.verbose         = verbose
         self.experiment = experiment
-        self.config = config
+        self.DeepForest_config = DeepForest_config
 
         super(Evaluate, self).__init__()
 
@@ -93,7 +93,7 @@ class Evaluate(keras.callbacks.Callback):
             print('mAP: {:.4f}'.format(self.mean_ap))
 
         #If the site is OSBS, perform ground truth comparison
-        site=os.path.split(os.path.normpath(self.config["training_csvs"]))[1]
+        site=os.path.split(os.path.normpath(self.DeepForest_config["training_csvs"]))[1]
 
         if site == "OSBS":
 
@@ -107,7 +107,7 @@ class Evaluate(keras.callbacks.Callback):
                 max_detections=self.max_detections,
                 save_path=self.save_path,
                 experiment=self.experiment,
-                config=self.config
+                DeepForest_config=self.DeepForest_config
             )
 
         ##Neon plot recall rate
@@ -121,7 +121,7 @@ class Evaluate(keras.callbacks.Callback):
             suppression_threshold=self.suppression_threshold,
             save_path=self.save_path,
             experiment=self.experiment,
-            config=self.config
+            DeepForest_config=self.DeepForest_config
         )
 
         print(f" Recall: {recall:.2f}")

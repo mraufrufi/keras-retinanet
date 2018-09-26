@@ -74,6 +74,36 @@ def _read_classes(data):
     
     return(classes)
 
+
+def _read_annotations(data,base_dir,windows,DeepForest_config,shuffle):
+    """ Create list of sliding windows to pass to reader. Named for legacy to match generator class.
+    """
+    
+    #Create dictionary of windows for each image
+    tile_windows={}
+    
+    all_images=list(data.rgb_path.unique())
+    
+    #Optionally randomize order to get new tiles    
+    if shuffle:
+        random.shuffle(all_images)
+
+    tile_windows["image"]=all_images
+    tile_windows["windows"]=np.arange(0,len(windows))
+    
+    #Expand grid
+    tile_data=expand_grid(tile_windows)
+
+    #Optionally subsample data based on DeepForest_config file. To increase efficiency, sample in order of preserving as many windows on the same tile, but shuffle within each tile
+    if not DeepForest_config["subsample"] == "None":
+        
+        tile_data=tile_data.head(n=DeepForest_config["subsample"])
+        groups = [df for _, df in tile_data.groupby('image')]
+        groups=[x.sample(frac=1) for x in groups]
+        tile_data=pd.concat(groups).reset_index(drop=True)
+        
+    image_dict=tile_data.to_dict("index")
+    return(image_dict)
     
 def fetch_annotations(image,index,annotations,windows,offset,patch_size):
     '''
@@ -196,8 +226,7 @@ class OnTheFlyGenerator(Generator):
     def __init__(
         self,
         csv_data_file,
-        window_dict,
-        config,
+        DeepForest_config,
         base_dir=None,
         shuffle_tiles=False,
         **kwargs
@@ -213,10 +242,10 @@ class OnTheFlyGenerator(Generator):
         self.image_data  = {}
         self.base_dir    = base_dir
         
-        #Store config and resolution
-        self.config=config
+        #Store DeepForest_config and resolution
+        self.DeepForest_config=DeepForest_config
         self.rgb_tile_dir=base_dir
-        self.rgb_res=config['rgb_res']
+        self.rgb_res=DeepForest_config['rgb_res']
         self.shuffle=shuffle_tiles
         
         #Holder for image path, keep from reloading same image to save time.
@@ -225,8 +254,8 @@ class OnTheFlyGenerator(Generator):
         #Holder for previous annotations, after epoch > 1
         self.annotation_dict={}
         
-        #debug - plot images, based on config fiile
-        self.plot_image=config['plot_image']
+        #debug - plot images, based on DeepForest_config fiile
+        self.plot_image=DeepForest_config['plot_image']
         
         # Take base_dir from annotations file if not explicitly specified.
         if self.base_dir is None:
@@ -236,7 +265,7 @@ class OnTheFlyGenerator(Generator):
         self.annotation_list=load_csv(csv_data_file, self.rgb_res)
             
         #Compute sliding windows, assumed that all objects are the same extent and resolution
-        self.windows=compute_windows(base_dir + self.annotation_list.rgb_path.unique()[0], config["patch_size"], config["patch_overlap"])
+        self.windows=compute_windows(base_dir + self.annotation_list.rgb_path.unique()[0], DeepForest_config["patch_size"], DeepForest_config["patch_overlap"])
         
         #Read classes
         self.classes=_read_classes(data=self.annotation_list)  
@@ -247,7 +276,7 @@ class OnTheFlyGenerator(Generator):
             self.labels[value] = key        
         
         #Create list of sliding windows to select
-        self.image_data=window_dict
+        self.image_data=_read_annotations(self.annotation_list,self.base_dir,self.windows,self.DeepForest_config,self.shuffle)
         self.image_names = list(self.image_data.keys())
         
         super(OnTheFlyGenerator, self).__init__(**kwargs)
@@ -341,8 +370,8 @@ class OnTheFlyGenerator(Generator):
                                            index=row["windows"],
                                            annotations=self.annotation_list,
                                            windows=self.windows,
-                                           offset=(self.config["patch_size"] * 0.1)/self.rgb_res,
-                                           patch_size=self.config["patch_size"])
+                                           offset=(self.DeepForest_config["patch_size"] * 0.1)/self.rgb_res,
+                                           patch_size=self.DeepForest_config["patch_size"])
 
         #Index
         boxes=np.copy(self.annotation_dict[key])
