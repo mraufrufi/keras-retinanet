@@ -16,7 +16,6 @@ limitations under the License.
 
 import keras
 from ..utils.eval import evaluate
-from ..utils.eval import JaccardEvaluate, neonRecall
 import os
 
 class Evaluate(keras.callbacks.Callback):
@@ -91,39 +90,3 @@ class Evaluate(keras.callbacks.Callback):
 
         if self.verbose == 1:
             print('mAP: {:.4f}'.format(self.mean_ap))
-
-        #If the site is OSBS, perform ground truth comparison
-        site=os.path.split(os.path.normpath(self.DeepForest_config["training_csvs"]))[1]
-
-        if site == "OSBS":
-
-            #Jaccard overlap
-            jaccard = JaccardEvaluate(
-                self.generator,
-                self.model,
-                iou_threshold=self.iou_threshold,
-                score_threshold=self.score_threshold,
-                suppression_threshold=self.suppression_threshold,
-                max_detections=self.max_detections,
-                save_path=self.save_path,
-                experiment=self.experiment,
-                DeepForest_config=self.DeepForest_config
-            )
-
-        ##Neon plot recall rate
-        recall = neonRecall(
-            site,
-            self.generator,
-            self.model,
-            iou_threshold=self.iou_threshold,
-            score_threshold=self.score_threshold,
-            max_detections=self.max_detections,
-            suppression_threshold=self.suppression_threshold,
-            save_path=self.save_path,
-            experiment=self.experiment,
-            DeepForest_config=self.DeepForest_config
-        )
-
-        print(f" Recall: {recall:.2f}")
-
-        self.experiment.log_metric("Recall", recall)
