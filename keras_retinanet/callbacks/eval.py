@@ -41,9 +41,10 @@ class Evaluate(keras.callbacks.Callback):
         self.iou_threshold   = iou_threshold
         self.score_threshold = score_threshold
         self.max_detections  = max_detections
-        self.suppression_threshold=suppression_threshold 
+        self.suppression_threshold=suppression_threshold
         self.save_path       = save_path
         self.tensorboard     = tensorboard
+        self.weighted_average = weighted_average
         self.verbose         = verbose
         self.experiment = experiment
         self.config = config
@@ -65,16 +66,18 @@ class Evaluate(keras.callbacks.Callback):
         )
 
         # compute per class average precision
-        present_classes = 0
-        precision = 0
+        total_instances = []
+        precisions = []
         for label, (average_precision, num_annotations ) in average_precisions.items():
             if self.verbose == 1:
                 print('{:.0f} instances of class'.format(num_annotations),
                       self.generator.label_to_name(label), 'with average precision: {:.4f}'.format(average_precision))
-            if num_annotations > 0:
-                present_classes += 1
-                precision       += average_precision
-        self.mean_ap = precision / present_classes
+            total_instances.append(num_annotations)
+            precisions.append(average_precision)
+        if self.weighted_average:
+            self.mean_ap = sum([a * b for a, b in zip(total_instances, precisions)]) / sum(total_instances)
+        else:
+            self.mean_ap = sum(precisions) / sum(x > 0 for x in total_instances)
 
         if self.tensorboard is not None and self.tensorboard.writer is not None:
             import tensorflow as tf
@@ -88,25 +91,25 @@ class Evaluate(keras.callbacks.Callback):
 
         if self.verbose == 1:
             print('mAP: {:.4f}'.format(self.mean_ap))
-            
+
         #If the site is OSBS, perform ground truth comparison
         site=os.path.split(os.path.normpath(self.config["training_csvs"]))[1]
-        
+
         if site == "OSBS":
-            
+
             #Jaccard overlap
             jaccard = JaccardEvaluate(
                 self.generator,
                 self.model,
                 iou_threshold=self.iou_threshold,
                 score_threshold=self.score_threshold,
-                suppression_threshold=self.suppression_threshold,                
+                suppression_threshold=self.suppression_threshold,
                 max_detections=self.max_detections,
                 save_path=self.save_path,
                 experiment=self.experiment,
                 config=self.config
-            )        
-            
+            )
+
         ##Neon plot recall rate
         recall = neonRecall(
             site,
@@ -119,9 +122,8 @@ class Evaluate(keras.callbacks.Callback):
             save_path=self.save_path,
             experiment=self.experiment,
             config=self.config
-        )    
-        
+        )
+
         print(f" Recall: {recall:.2f}")
-        
-        self.experiment.log_metric("Recall", recall)    
-        
+
+        self.experiment.log_metric("Recall", recall)

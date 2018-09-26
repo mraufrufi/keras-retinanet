@@ -23,10 +23,10 @@ import keras
 
 from ..utils.anchors import (
     anchor_targets_bbox,
-    bbox_transform,
     anchors_for_shape,
     guess_shapes
 )
+from ..utils.config import parse_anchor_parameters
 from ..utils.image import (
     TransformParameters,
     adjust_transform_for_image,
@@ -53,6 +53,7 @@ class Generator(object):
         compute_anchor_targets=anchor_targets_bbox,
         compute_shapes=guess_shapes,
         preprocess_image=preprocess_image,
+        config=None
     ):
         """ Initialize Generator object.
 
@@ -78,6 +79,7 @@ class Generator(object):
         self.compute_anchor_targets = compute_anchor_targets
         self.compute_shapes         = compute_shapes
         self.preprocess_image       = preprocess_image
+        self.config                 = config
 
         self.group_index = 0
         self.lock        = threading.Lock()
@@ -241,10 +243,16 @@ class Generator(object):
         for image_index, image in enumerate(image_group):
             image_batch[image_index, :image.shape[0], :image.shape[1], :image.shape[2]] = image
 
+        if keras.backend.image_data_format() == 'channels_first':
+            image_batch = image_batch.transpose((0, 3, 1, 2))
+
         return image_batch
 
     def generate_anchors(self, image_shape):
-        return anchors_for_shape(image_shape, shapes_callback=self.compute_shapes)
+        anchor_params = None
+        if self.config and 'anchor_parameters' in self.config:
+            anchor_params = parse_anchor_parameters(self.config)
+        return anchors_for_shape(image_shape, anchor_params=anchor_params, shapes_callback=self.compute_shapes)
 
     def compute_targets(self, image_group, annotations_group):
         """ Compute target outputs for the network using images and their annotations.
@@ -253,20 +261,12 @@ class Generator(object):
         max_shape = tuple(max(image.shape[x] for image in image_group) for x in range(3))
         anchors   = self.generate_anchors(max_shape)
 
-        regression_batch = np.empty((self.batch_size, anchors.shape[0], 4 + 1), dtype=keras.backend.floatx())
-        labels_batch     = np.empty((self.batch_size, anchors.shape[0], self.num_classes() + 1), dtype=keras.backend.floatx())
-
-        # compute labels and regression targets
-        for index, (image, annotations) in enumerate(zip(image_group, annotations_group)):
-            # compute regression targets
-            labels_batch[index, :, :-1], annotations, labels_batch[index, :, -1] = self.compute_anchor_targets(
-                anchors,
-                annotations,
-                self.num_classes(),
-                mask_shape=image.shape,
-            )
-            regression_batch[index, :, :-1] = bbox_transform(anchors, annotations)
-            regression_batch[index, :, -1]  = labels_batch[index, :, -1]  # copy the anchor states to the regression batch
+        labels_batch, regression_batch, _ = self.compute_anchor_targets(
+            anchors,
+            image_group,
+            annotations_group,
+            self.num_classes()
+        )
 
         return [regression_batch, labels_batch]
 
