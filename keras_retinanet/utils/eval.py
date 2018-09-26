@@ -23,7 +23,7 @@ from .visualization import draw_detections, draw_annotations, draw_ground_overla
 import keras
 import numpy as np
 import os
-
+import cv2
 
 def _compute_ap(recall, precision):
     """ Compute the average precision, given the recall and precision curves.
