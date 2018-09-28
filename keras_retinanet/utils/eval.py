@@ -167,7 +167,6 @@ def evaluate(
     # Returns
         A dict mapping class names to mAP scores.
     """
-    
 
     # gather all detections and annotations
     all_detections     = _get_detections(generator, model, score_threshold=score_threshold, max_detections=max_detections, save_path=save_path,experiment=experiment)
