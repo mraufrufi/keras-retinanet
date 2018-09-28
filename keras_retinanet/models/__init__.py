@@ -59,7 +59,7 @@ def backbone(backbone_name):
     return b(backbone_name)
 
 
-def load_model(filepath, backbone_name='resnet50', convert=False, nms=True, class_specific_filter=True, anchor_params=None):
+def load_model(filepath, backbone_name='resnet50', convert=False, nms=True, class_specific_filter=True, anchor_params=None,nms_threshold=None):
     """ Loads a retinanet model using the correct custom objects.
 
     # Arguments
@@ -84,6 +84,6 @@ def load_model(filepath, backbone_name='resnet50', convert=False, nms=True, clas
     model = keras.models.load_model(filepath, custom_objects=backbone(backbone_name).custom_objects)
     if convert:
         from .retinanet import retinanet_bbox
-        model = retinanet_bbox(model=model, nms=nms, class_specific_filter=class_specific_filter, anchor_params=anchor_params)
+        model = retinanet_bbox(model=model, nms=nms, class_specific_filter=class_specific_filter, anchor_params=anchor_params,nms_threshold=nms_threshold)
 
     return model

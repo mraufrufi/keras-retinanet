@@ -311,6 +311,8 @@ def retinanet_bbox(
         ```
     """
 
+    print("Build non-max suppression with a threshold %.2f" %(nms_threshold))
+
     # if no anchor parameters are passed, use default values
     if anchor_params is None:
         anchor_params = AnchorParameters.default
@@ -337,6 +339,7 @@ def retinanet_bbox(
     # filter detections (apply NMS / score threshold / select top-k)
     detections = layers.FilterDetections(
         nms                   = nms,
+        nms_threshold=nms_threshold,
         class_specific_filter = class_specific_filter,
         name                  = 'filtered_detections'
     )([boxes, classification] + other)
