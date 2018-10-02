@@ -105,12 +105,13 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100, 
         if save_path is not None:
             draw_annotations(raw_image, generator.load_annotations(i), label_to_name=generator.label_to_name)
             draw_detections(raw_image, image_boxes, image_scores, image_labels, label_to_name=generator.label_to_name,score_threshold=0.2)
-                        
-            cv2.imwrite(os.path.join(save_path, '{}.png'.format(i)), raw_image)
+            
+            image_name=generator.image_names[i]        
+            row=generator.image_data[image_name]             
+            fname=os.path.splitext(row["image"])[0] + "_" + str(row["windows"])
+            
+            cv2.imwrite(os.path.join(save_path, '{}.png'.format(fname)), raw_image)
             if experiment:
-                image_name=generator.image_names[i]        
-                row=generator.image_data[image_name]             
-                fname=os.path.splitext(row["image"])[0] + "_" + str(row["windows"])
                 experiment.log_image(os.path.join(save_path, '{}.png'.format(fname)),file_name=fname)
 
         # copy detections to all_detections
