@@ -82,7 +82,6 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100, 
             image = image.transpose((2, 0, 1))
 
         # run network
-        print("evaluate image shape is %s"  %(image.shape))
         boxes, scores, labels = model.predict_on_batch(np.expand_dims(image, axis=0))[:3]
 
         # correct boxes for image scale
@@ -105,7 +104,7 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100, 
                         
         if save_path is not None:
             draw_annotations(raw_image, generator.load_annotations(i), label_to_name=generator.label_to_name)
-            draw_detections(raw_image, image_boxes, image_scores, image_labels, label_to_name=generator.label_to_name,score_threshold=0.2)
+            draw_detections(raw_image, image_boxes, image_scores, image_labels, label_to_name=generator.label_to_name,score_threshold=score_threshold)
             
             image_name=generator.image_names[i]        
             row=generator.image_data[image_name]             
