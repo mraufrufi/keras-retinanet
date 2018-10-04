@@ -46,7 +46,6 @@ class Generator(object):
         transform_generator = None,
         batch_size=1,
         group_method='none',  # one of 'none', 'random', 'ratio'
-        shuffle_groups=True,
         image_min_side=800,
         image_max_side=1333,
         transform_parameters=None,
@@ -61,7 +60,6 @@ class Generator(object):
             transform_generator    : A generator used to randomly transform images and annotations.
             batch_size             : The size of the batches to generate.
             group_method           : Determines how images are grouped together (defaults to 'ratio', one of ('none', 'random', 'ratio')).
-            shuffle_groups         : If True, shuffles the groups each epoch.
             image_min_side         : After resizing the minimum side of an image is equal to image_min_side.
             image_max_side         : If after resizing the maximum side is larger than image_max_side, scales down further so that the max side is equal to image_max_side.
             transform_parameters   : The transform parameters used for data augmentation.
@@ -72,7 +70,6 @@ class Generator(object):
         self.transform_generator    = transform_generator
         self.batch_size             = int(batch_size)
         self.group_method           = group_method
-        self.shuffle_groups         = shuffle_groups
         self.image_min_side         = image_min_side
         self.image_max_side         = image_max_side
         self.transform_parameters   = transform_parameters or TransformParameters()
@@ -297,7 +294,7 @@ class Generator(object):
         with self.lock:
             if self.group_index == 0:
                 # shuffle groups at start of epoch   
-                print("shuffling groups")                
+                print("Shuffling Groups by Tile")       
                 self.image_data, self.image_names =self.shuffle_groups(self.windowdf)
                 self.group_images()
                 
