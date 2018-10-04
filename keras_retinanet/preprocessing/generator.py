@@ -84,8 +84,6 @@ class Generator(object):
         self.group_index = 0
         self.lock        = threading.Lock()
 
-        self.group_images()
-
     def size(self):
         """ Size of the dataset.
         """
@@ -297,10 +295,12 @@ class Generator(object):
     def next(self):
         # advance the group index
         with self.lock:
-            if self.group_index == 0 and self.shuffle_groups:
-                # shuffle groups at start of epoch
-                print("shuffling groups")
-                random.shuffle(self.groups)
+            if self.group_index == 0:
+                # shuffle groups at start of epoch   
+                print("shuffling groups")                
+                self.image_data, self.image_names =self.shuffle_groups(self.windowdf)
+                self.group_images()
+                
             group = self.groups[self.group_index]
             self.group_index = (self.group_index + 1) % len(self.groups)
 
