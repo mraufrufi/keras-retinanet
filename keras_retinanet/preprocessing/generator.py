@@ -299,6 +299,7 @@ class Generator(object):
         with self.lock:
             if self.group_index == 0 and self.shuffle_groups:
                 # shuffle groups at start of epoch
+                print("shuffling groups")
                 random.shuffle(self.groups)
             group = self.groups[self.group_index]
             self.group_index = (self.group_index + 1) % len(self.groups)
