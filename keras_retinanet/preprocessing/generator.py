@@ -36,7 +36,6 @@ from ..utils.image import (
 )
 from ..utils.transform import transform_aabb
 
-@threadsafe_generator
 class Generator(object):
     """ Abstract generator class.
     """
