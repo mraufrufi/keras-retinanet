@@ -294,7 +294,7 @@ class Generator(object):
             if self.group_index == 0 and self.shuffle_tile_epoch:
                 # shuffle groups at start of epoch   
                 print("Shuffling and recomputing batches by tile")  
-                self.image_data, self.image_names =self.shuffle_groups(self.windowdf)
+                self.image_data, self.image_names =self.define_groups(self.windowdf,shuffle=True)
                 self.group_images()
                 
             group = self.groups[self.group_index]
