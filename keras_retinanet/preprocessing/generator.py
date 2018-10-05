@@ -36,7 +36,7 @@ from ..utils.image import (
 )
 from ..utils.transform import transform_aabb
 
-
+@threadsafe_generator
 class Generator(object):
     """ Abstract generator class.
     """
@@ -292,9 +292,9 @@ class Generator(object):
     def next(self):
         # advance the group index
         with self.lock:
-            if self.group_index == 0:
+            if self.group_index == 0 and self.shuffle_tile_epoch:
                 # shuffle groups at start of epoch   
-                print("Shuffling Groups by Tile")       
+                print("Shuffling and recomputing batches by tile")  
                 self.image_data, self.image_names =self.shuffle_groups(self.windowdf)
                 self.group_images()
                 
@@ -302,3 +302,4 @@ class Generator(object):
             self.group_index = (self.group_index + 1) % len(self.groups)
 
         return self.compute_input_output(group)
+
