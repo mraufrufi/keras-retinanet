@@ -232,6 +232,8 @@ def evaluate(
         # compute recall and precision
         recall    = true_positives / num_annotations
         precision = true_positives / np.maximum(true_positives + false_positives, np.finfo(np.float64).eps)
+        
+        f"At score threshold {score_threshold}, the IoU recall is {recall} and precision is {precision}"
 
         # compute average precision
         average_precision  = _compute_ap(recall, precision)
