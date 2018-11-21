@@ -233,8 +233,11 @@ def evaluate(
         recall    = true_positives / num_annotations
         precision = true_positives / np.maximum(true_positives + false_positives, np.finfo(np.float64).eps)
         
-        print(f"At score threshold {score_threshold}, the IoU recall is {recall[-1]} and precision is {precision[-1]}")
-
+        if len(recall > 0):
+            print(f"At score threshold {score_threshold}, the IoU recall is {recall[-1]} and precision is {precision[-1]}")
+        else:
+            print("None of the annotations exceeded score threshold")
+            
         # compute average precision
         average_precision  = _compute_ap(recall, precision)
         average_precisions[label] = average_precision, num_annotations
