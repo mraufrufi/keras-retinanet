@@ -75,6 +75,10 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100, 
     for i in range(generator.size()):
         raw_image    = generator.load_image(i)
     
+        #Skip if missing a component data source
+        if raw_image is None:
+            continue
+        
         image        = generator.preprocess_image(raw_image)
         image, scale = generator.resize_image(image)
 
@@ -195,6 +199,12 @@ def evaluate(
             num_annotations     += annotations.shape[0]
             detected_annotations = []
 
+            try:
+                _ = len(detections)
+            except:
+                print("No detections")
+                continue
+            
             for d in detections:
                 scores = np.append(scores, d[4])
 
