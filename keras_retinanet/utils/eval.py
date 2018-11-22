@@ -110,7 +110,7 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100, 
             row=generator.image_data[image_name]             
             fname=os.path.splitext(row["image"])[0] + "_" + str(row["windows"])
             
-            cv2.imwrite(os.path.join(save_path, '{}.png'.format(fname)), raw_image)
+            cv2.imwrite(os.path.join(save_path, '{}.png'.format(fname)), raw_image[:,:,:3])
             if experiment:
                 experiment.log_image(os.path.join(save_path, '{}.png'.format(fname)),file_name=fname)
 
