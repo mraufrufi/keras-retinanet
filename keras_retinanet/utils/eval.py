@@ -233,7 +233,7 @@ def evaluate(
         recall    = true_positives / num_annotations
         precision = true_positives / np.maximum(true_positives + false_positives, np.finfo(np.float64).eps)
         
-        if len(recall > 0):
+        if len(recall) > 0:
             print(f"At score threshold {score_threshold}, the IoU recall is {recall[-1]} and precision is {precision[-1]}")
         else:
             print("None of the annotations exceeded score threshold")
