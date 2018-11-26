@@ -114,9 +114,22 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100, 
             row=generator.image_data[image_name]             
             fname=os.path.splitext(row["image"])[0] + "_" + str(row["windows"])
             
+            #Write RGB
             cv2.imwrite(os.path.join(save_path, '{}.png'.format(fname)), raw_image[:,:,:3])
+            
+            #Write LIDAR
+            heatmap=cv2.applyColorMap(raw_image[:,:,3], cv2.COLORMAP_JET)                        
+            draw_annotations(heatmap, generator.load_annotations(i), label_to_name=generator.label_to_name)
+            draw_detections(heatmap, image_boxes, image_scores, image_labels, label_to_name=generator.label_to_name,score_threshold=score_threshold)
+            image_name=generator.image_names[i]        
+            row=generator.image_data[image_name]             
+            lfname=os.path.splitext(row["image"])[0] + "_" + str(row["windows"]) +"_lidar"
+            
+            cv2.imwrite(os.path.join(save_path, '{}_lidar.png'.format(lfname)), )
+            
             if experiment:
-                experiment.log_image(os.path.join(save_path, '{}.png'.format(fname)),file_name=fname)
+                experiment.log_image(os.path.join(save_path, '{}.png'.format(fname)),file_name=fname)                
+                experiment.log_image(os.path.join(save_path, '{}_lidar.png'.format(fname)),file_name=lfname)
 
         # copy detections to all_detections
         for label in range(generator.num_classes()):
