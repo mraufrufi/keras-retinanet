@@ -24,6 +24,7 @@ import keras
 import numpy as np
 import os
 import cv2
+from matplotlib import pyplot as plt
 
 def _compute_ap(recall, precision):
     """ Compute the average precision, given the recall and precision curves.
@@ -77,7 +78,11 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100, 
     
         #Skip if missing a component data source
         if raw_image is None:
+            print("Empty image, skipping")
             continue
+        else:
+            #Make a copy of the chm for plotting
+            chm=raw_image[:,:,3].copy()
         
         image        = generator.preprocess_image(raw_image)
         image, scale = generator.resize_image(image)
@@ -118,14 +123,19 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100, 
             cv2.imwrite(os.path.join(save_path, '{}.png'.format(fname)), raw_image[:,:,:3])
             
             #Write LIDAR
-            heatmap=cv2.applyColorMap(raw_image[:,:,3], cv2.COLORMAP_JET)                        
-            draw_annotations(heatmap, generator.load_annotations(i), label_to_name=generator.label_to_name)
-            draw_detections(heatmap, image_boxes, image_scores, image_labels, label_to_name=generator.label_to_name,score_threshold=score_threshold)
+            draw_annotations(chm, generator.load_annotations(i), label_to_name=generator.label_to_name)
+            draw_detections(chm, image_boxes, image_scores, image_labels, label_to_name=generator.label_to_name,score_threshold=score_threshold)            
+            fig, ax = plt.subplots()
+            caz = ax.matshow(chm)
+            fig.colorbar(caz)
+            
+            #Format name and save
             image_name=generator.image_names[i]        
             row=generator.image_data[image_name]             
             lfname=os.path.splitext(row["image"])[0] + "_" + str(row["windows"]) +"_lidar"
             
-            cv2.imwrite(os.path.join(save_path, '{}_lidar.png'.format(lfname)), )
+            #Write CHM
+            plt.savefig(os.path.join(save_path, '{}.png'.format(lfname)))
             
             if experiment:
                 experiment.log_image(os.path.join(save_path, '{}.png'.format(fname)),file_name=fname)                
