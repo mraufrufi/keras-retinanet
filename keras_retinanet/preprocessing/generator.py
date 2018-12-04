@@ -16,7 +16,6 @@ limitations under the License.
 
 import numpy as np
 import random
-import threading
 import warnings
 
 import keras
@@ -78,21 +77,15 @@ class Generator(keras.utils.Sequence):
         self.config                 = config
 
         self.group_index = 0
-        self.lock        = threading.Lock()
         
         #Shuffle on end
         self.on_epoch_end()
-        
+            
     def on_epoch_end(self):
         print("Shuffling and recomputing batches by tile")  
         self.image_data, self.image_names =self.define_groups(self.windowdf,shuffle=True)
         self.group_images()
         print(self.groups)
-        
-    def size(self):
-        """ Size of the dataset.
-        """
-        raise NotImplementedError('size method not implemented')
 
     def num_classes(self):
         """ Number of classes in the dataset.
@@ -148,11 +141,6 @@ class Generator(keras.utils.Sequence):
 
             # delete invalid indices
             if len(invalid_indices):  
-                
-                #During debug unflag to stop on warnings
-                import warnings
-                warnings.filterwarnings("error")
-                
                 warnings.warn('Image with id {} (shape {}) contains the following invalid boxes: {}.'.format(
                     group[index],
                     image.shape,
@@ -292,14 +280,7 @@ class Generator(keras.utils.Sequence):
 
         return inputs, targets
 
-    def __next__(self):
-        return self.next()
-
-    def next(self):
-        # advance the group index
-        with self.lock:
-            group = self.groups[self.group_index]
-            self.group_index = (self.group_index + 1) % len(self.groups)
-            
-        return self.compute_input_output(group)
-
+    def __getitem__(self,index):
+        group = self.groups[index]        
+        inputs,targets=self.compute_input_output(group)
+        return inputs,targets
