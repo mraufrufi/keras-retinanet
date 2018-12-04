@@ -85,7 +85,6 @@ class Generator(keras.utils.Sequence):
         print("Shuffling and recomputing batches by tile")  
         self.image_data, self.image_names =self.define_groups(self.windowdf,shuffle=True)
         self.group_images()
-        print(self.groups)
 
     def num_classes(self):
         """ Number of classes in the dataset.
@@ -281,6 +280,11 @@ class Generator(keras.utils.Sequence):
         return inputs, targets
 
     def __getitem__(self,index):
+        """
+        Keras sequence method for generating batches
+        """
+        #print("index is %d" %(index))
         group = self.groups[index]        
+        #'{}'.format(group)
         inputs,targets=self.compute_input_output(group)
         return inputs,targets
