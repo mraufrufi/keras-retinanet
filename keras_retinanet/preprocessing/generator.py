@@ -75,8 +75,6 @@ class Generator(keras.utils.Sequence):
         self.compute_shapes         = compute_shapes
         self.preprocess_image       = preprocess_image
         self.config                 = config
-
-        self.group_index = 0
         
         #Shuffle on end
         self.on_epoch_end()
