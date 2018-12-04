@@ -36,8 +36,8 @@ from ..utils.image import (
 )
 from ..utils.transform import transform_aabb
 
-class Generator(object):
-    """ Abstract generator class.
+class Generator(keras.utils.Sequence):
+    """ Sequence generator class.
     """
 
     def __init__(
@@ -79,7 +79,16 @@ class Generator(object):
 
         self.group_index = 0
         self.lock        = threading.Lock()
-
+        
+        #Shuffle on end
+        self.on_epoch_end()
+        
+    def on_epoch_end(self):
+        print("Shuffling and recomputing batches by tile")  
+        self.image_data, self.image_names =self.define_groups(self.windowdf,shuffle=True)
+        self.group_images()
+        print(self.groups)
+        
     def size(self):
         """ Size of the dataset.
         """
@@ -289,14 +298,8 @@ class Generator(object):
     def next(self):
         # advance the group index
         with self.lock:
-            if self.group_index == 0 and self.shuffle_tile_epoch:
-                # shuffle groups at start of epoch   
-                print("Shuffling and recomputing batches by tile")  
-                self.image_data, self.image_names =self.define_groups(self.windowdf,shuffle=True)
-                self.group_images()
-                
             group = self.groups[self.group_index]
             self.group_index = (self.group_index + 1) % len(self.groups)
-
+            
         return self.compute_input_output(group)
 
