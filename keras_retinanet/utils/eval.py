@@ -117,7 +117,7 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100, 
             
             image_name=generator.image_names[i]        
             row=generator.image_data[image_name]             
-            fname=os.path.splitext(row["image"])[0] + "_" + str(row["windows"])
+            fname=os.path.splitext(row["tile"])[0] + "_" + str(row["window"])
             
             #Write RGB
             cv2.imwrite(os.path.join(save_path, '{}.png'.format(fname)), raw_image[:,:,:3])
@@ -135,7 +135,7 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100, 
             #Format name and save
             image_name=generator.image_names[i]        
             row=generator.image_data[image_name]             
-            lfname=os.path.splitext(row["image"])[0] + "_" + str(row["windows"]) +"_lidar"
+            lfname=os.path.splitext(row["tile"])[0] + "_" + str(row["window"]) +"_lidar"
             
             #Write CHM
             cv2.imwrite(os.path.join(save_path, '{}.png'.format(lfname)), chm)
