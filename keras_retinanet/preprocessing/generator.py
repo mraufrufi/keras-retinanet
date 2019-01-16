@@ -80,7 +80,7 @@ class Generator(keras.utils.Sequence):
         self.on_epoch_end()
             
     def on_epoch_end(self):
-        print("Shuffling and recomputing batches by tile")  
+        print("Computing batches")  
         self.image_data, self.image_names =self.define_groups(self.windowdf,shuffle=True)
         self.group_images()
 
