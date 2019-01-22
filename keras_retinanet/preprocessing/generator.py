@@ -205,6 +205,8 @@ class Generator(keras.utils.Sequence):
     def group_images(self):
         """ Order the images according to self.order and makes groups of self.batch_size.
         """
+        
+        order = list(range(self.size()))        
 
         # divide into groups, one group = one batch
         self.groups = [[order[x % len(order)] for x in range(i, i + self.batch_size)] for i in range(0, len(order), self.batch_size)]
