@@ -81,7 +81,7 @@ def resnet_retinanet(num_classes, backbone='resnet50', inputs=None, modifier=Non
     Args
         num_classes: Number of classes to predict.
         backbone: Which backbone to use (one of ('resnet50', 'resnet101', 'resnet152')).
-        inputs: The inputs to the network (defaults to a Tensor of shape (None, None, 4)).
+        inputs: The inputs to the network (defaults to a Tensor of shape (None, None, 3)).
         modifier: A function handler which can modify the backbone before using it in retinanet (this can be used to freeze backbone layers for example).
 
     Returns
@@ -90,9 +90,9 @@ def resnet_retinanet(num_classes, backbone='resnet50', inputs=None, modifier=Non
     # choose default input
     if inputs is None:
         if keras.backend.image_data_format() == 'channels_first':
-            inputs = keras.layers.Input(shape=(4, None, None))
+            inputs = keras.layers.Input(shape=(3, None, None))
         else:
-            inputs = keras.layers.Input(shape=(None, None, 4))
+            inputs = keras.layers.Input(shape=(None, None, 3))
 
     # create the resnet backbone
     if backbone == 'resnet50':

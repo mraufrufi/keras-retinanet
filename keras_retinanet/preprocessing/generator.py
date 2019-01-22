@@ -44,7 +44,7 @@ class Generator(keras.utils.Sequence):
         transform_generator = None,
         batch_size=1,
         group_method='none',  # one of 'none', 'random', 'ratio'
-        image_min_side=800,
+        image_min_side=400,
         image_max_side=1333,
         transform_parameters=None,
         compute_anchor_targets=anchor_targets_bbox,
@@ -77,11 +77,11 @@ class Generator(keras.utils.Sequence):
         self.config                 = config
         
         #Shuffle on end
-        self.on_epoch_end()
+        self.on_epoch_end(shuffle=False)
             
-    def on_epoch_end(self):
-        print("Computing batches")  
-        self.image_data, self.image_names =self.define_groups(self.windowdf,shuffle=True)
+    def on_epoch_end(self, shuffle=True):
+        print("Computing batches, shuffle = {}".format(shuffle))  
+        self.image_data, self.image_names = self.define_groups(shuffle=shuffle)
         self.group_images()
 
     def num_classes(self):
@@ -176,10 +176,10 @@ class Generator(keras.utils.Sequence):
         """ Preprocess image and its annotations.
         """
         # preprocess the image
-        image = self.preprocess_image(image)
+        #image = self.preprocess_image(image)
 
         # randomly transform image and annotations
-        image, annotations = self.random_transform_group_entry(image, annotations)
+        #image, annotations = self.random_transform_group_entry(image, annotations)
 
         # resize image
         image, image_scale = self.resize_image(image)
@@ -205,13 +205,6 @@ class Generator(keras.utils.Sequence):
     def group_images(self):
         """ Order the images according to self.order and makes groups of self.batch_size.
         """
-                
-        # determine the order of the images
-        order = list(range(self.size()))
-        if self.group_method == 'random':
-            random.shuffle(order)
-        elif self.group_method == 'ratio':
-            order.sort(key=lambda x: self.image_aspect_ratio(x))
 
         # divide into groups, one group = one batch
         self.groups = [[order[x % len(order)] for x in range(i, i + self.batch_size)] for i in range(0, len(order), self.batch_size)]
