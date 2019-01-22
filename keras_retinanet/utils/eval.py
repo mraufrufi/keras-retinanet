@@ -54,7 +54,7 @@ def _compute_ap(recall, precision):
     return ap
 
 
-def _get_detections(generator, model, score_threshold=0.05, max_detections=100, save_path=None,experiment=None):
+def _get_detections(generator, model, score_threshold=0.05, max_detections=100, save_path=None, experiment=None):
     """ Get the detections from the model using the generator.
 
     The result is a list of lists such that the size is:
@@ -79,9 +79,6 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100, 
         if raw_image is None:
             print("Empty image, skipping")
             continue
-        else:
-            #Make a copy of the chm for plotting
-            chm=raw_image[:,:,3].copy()
         
         image        = generator.preprocess_image(raw_image)
         image, scale = generator.resize_image(image)
@@ -119,29 +116,10 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100, 
             fname=os.path.splitext(row["tile"])[0] + "_" + str(row["window"])
             
             #Write RGB
-            cv2.imwrite(os.path.join(save_path, '{}.png'.format(fname)), raw_image[:,:,:3])
-            
-            #Write LIDAR
-            chm = chm.astype(np.float32) # convert to float
-            chm -= chm.min() # ensure the minimal value is 0.0
-            chm /= chm.max() # maximum value in chm is now 1.0
-            chm = np.array(chm * 255, dtype = np.uint8)
-            chm=cv2.applyColorMap(chm, cv2.COLORMAP_JET)
-            
-            draw_annotations(chm, generator.load_annotations(i), label_to_name=generator.label_to_name)
-            draw_detections(chm, image_boxes, image_scores, image_labels, label_to_name=generator.label_to_name,score_threshold=score_threshold)            
-            
-            #Format name and save
-            image_name=generator.image_names[i]        
-            row=generator.image_data[image_name]             
-            lfname=os.path.splitext(row["tile"])[0] + "_" + str(row["window"]) +"_lidar"
-            
-            #Write CHM
-            cv2.imwrite(os.path.join(save_path, '{}.png'.format(lfname)), chm)
+            cv2.imwrite(os.path.join(save_path, '{}.png'.format(fname)), raw_image)
             
             if experiment:
-                experiment.log_image(os.path.join(save_path, '{}.png'.format(fname)),file_name=fname)                
-                experiment.log_image(os.path.join(save_path, '{}.png'.format(lfname)),file_name=lfname)
+                experiment.log_image(os.path.join(save_path, '{}.png'.format(fname)), file_name=fname)                
 
         # copy detections to all_detections
         for label in range(generator.num_classes()):
