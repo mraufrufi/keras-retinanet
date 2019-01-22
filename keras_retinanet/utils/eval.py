@@ -75,6 +75,9 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100, 
     for i in range(generator.size()):
         raw_image    = generator.load_image(i)
     
+        #need to make contigious see https://stackoverflow.com/questions/23830618/python-opencv-typeerror-layout-of-the-output-array-incompatible-with-cvmat
+        raw_image = raw_image.copy()
+        
         #Skip if missing a component data source
         if raw_image is None:
             print("Empty image, skipping")
