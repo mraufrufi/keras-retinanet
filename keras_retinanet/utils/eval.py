@@ -123,6 +123,7 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100, 
             
             if experiment:
                 experiment.log_image(os.path.join(save_path, '{}.png'.format(fname)), file_name=fname)                
+                #experiment.log_image(os.path.join(save_path, '{}.png'.format(lfname)),file_name=lfname)
 
         # copy detections to all_detections
         for label in range(generator.num_classes()):
