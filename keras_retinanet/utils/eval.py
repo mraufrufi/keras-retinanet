@@ -122,7 +122,7 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100, 
             fname=os.path.splitext(row["tile"])[0] + "_" + str(row["window"])
             
             #Write RGB
-            cv2.imwrite(os.path.join(save_path, '{}.png'.format(fname)), raw_image)
+            cv2.imwrite(os.path.join(save_path, '{}.png'.format(fname)), raw_image[:,:,:3])
             
             #Write LIDAR
             chm = chm.astype(np.float32) # convert to float
@@ -144,7 +144,7 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100, 
             
             if experiment:
                 experiment.log_image(os.path.join(save_path, '{}.png'.format(fname)), file_name=fname)                
-                #experiment.log_image(os.path.join(save_path, '{}.png'.format(lfname)),file_name=lfname)
+                experiment.log_image(os.path.join(save_path, '{}.png'.format(lfname)),file_name=lfname)
 
         # copy detections to all_detections
         for label in range(generator.num_classes()):
