@@ -24,6 +24,7 @@ import numpy as np
 import os
 import cv2
 from matplotlib import pyplot as plt
+from DeepForest import postprocessing
 
 def _compute_ap(recall, precision):
     """ Compute the average precision, given the recall and precision curves.
@@ -109,7 +110,16 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100, 
         image_scores     = scores[scores_sort]
         image_labels     = labels[0, indices[scores_sort]]
         image_detections = np.concatenate([image_boxes, np.expand_dims(image_scores, axis=1), np.expand_dims(image_labels, axis=1)], axis=1)
-                        
+        
+        #drape boxes
+        #get image name
+        pc = postprocessing.drape_boxes(boxes=quality_boxes, tilename=generator.image_data[i]["tile"], lidar_dir=DeepForest_config["lidar_path"])
+        
+        #Skip if point density is too low    
+        if pc:
+            #Get new bounding boxes
+            new_boxes = postprocessing.cloud_to_box(pc)    
+            
         if save_path is not None:
             draw_annotations(raw_image, generator.load_annotations(i), label_to_name=generator.label_to_name)
             draw_detections(raw_image, image_boxes, image_scores, image_labels, label_to_name=generator.label_to_name,score_threshold=score_threshold)
@@ -123,7 +133,6 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100, 
             
             if experiment:
                 experiment.log_image(os.path.join(save_path, '{}.png'.format(fname)), file_name=fname)                
-                #experiment.log_image(os.path.join(save_path, '{}.png'.format(lfname)),file_name=lfname)
 
         # copy detections to all_detections
         for label in range(generator.num_classes()):

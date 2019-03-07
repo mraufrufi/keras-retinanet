@@ -91,7 +91,6 @@ def draw_detections(image, boxes, scores, labels, color=(80,127,255), label_to_n
         caption = (label_to_name(labels[i]) if label_to_name else labels[i]) + ': {0:.2f}'.format(scores[i])
         draw_caption(image, boxes[i, :], caption)
 
-
 def draw_annotations(image, annotations, color=(0, 255, 0), label_to_name=None):
     """ Draws annotations in an image.
 
