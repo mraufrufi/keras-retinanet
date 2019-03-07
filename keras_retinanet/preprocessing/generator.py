@@ -176,7 +176,7 @@ class Generator(keras.utils.Sequence):
         """ Preprocess image and its annotations.
         """
         # preprocess the image
-        image = self.preprocess_image(image)
+        #image = self.preprocess_image(image)
 
         # randomly transform image and annotations
         #image, annotations = self.random_transform_group_entry(image, annotations)
