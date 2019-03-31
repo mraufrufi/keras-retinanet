@@ -176,8 +176,12 @@ class Generator(keras.utils.Sequence):
         """ Preprocess image and its annotations.
         """
         # preprocess the image
+        print("Before preprocessing")
+        print(image.max(axis=(0,1)))
         image = self.preprocess_image(image)
-
+        print("After preprocessing")
+        print(image.max(axis=(0,1)))
+        
         # randomly transform image and annotations
         #image, annotations = self.random_transform_group_entry(image, annotations)
 
@@ -205,7 +209,6 @@ class Generator(keras.utils.Sequence):
     def group_images(self):
         """ Order the images according to self.order and makes groups of self.batch_size.
         """
-        
         order = list(range(self.size()))        
 
         # divide into groups, one group = one batch
@@ -276,8 +279,6 @@ class Generator(keras.utils.Sequence):
         """
         Keras sequence method for generating batches
         """
-        #print("index is %d" %(index))
         group = self.groups[index]        
-        #'{}'.format(group)
-        inputs,targets=self.compute_input_output(group)
-        return inputs,targets
+        inputs,targets = self.compute_input_output(group)
+        return inputs, targets
