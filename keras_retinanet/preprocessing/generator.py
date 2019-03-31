@@ -176,11 +176,7 @@ class Generator(keras.utils.Sequence):
         """ Preprocess image and its annotations.
         """
         # preprocess the image
-        print("Before preprocessing")
-        print(image.max(axis=(0,1)))
         image = self.preprocess_image(image)
-        print("After preprocessing")
-        print(image.max(axis=(0,1)))
         
         # randomly transform image and annotations
         #image, annotations = self.random_transform_group_entry(image, annotations)
