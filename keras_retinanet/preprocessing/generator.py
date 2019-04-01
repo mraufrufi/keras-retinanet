@@ -214,7 +214,7 @@ class Generator(keras.utils.Sequence):
         """ Compute inputs for the network using an image_group.
         """
         # get the max image shape
-        max_shape = tuple(max(image.shape[x] for image in image_group) for x in range(3))
+        max_shape = tuple(max(image.shape[x] for image in image_group) for x in range(1))
 
         # construct an image batch object
         image_batch = np.zeros((self.batch_size,) + max_shape, dtype=keras.backend.floatx())
