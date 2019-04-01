@@ -176,4 +176,7 @@ def resize_image(img, min_side=800, max_side=1333):
     # resize the image with the computed scale
     img = cv2.resize(img, None, fx=scale, fy=scale)
 
+    #for a 1D array, cv2 resize drops expanded dim
+    img = np.expand_dims(img, 3)
+    
     return img, scale

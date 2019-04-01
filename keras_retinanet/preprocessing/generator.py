@@ -214,14 +214,14 @@ class Generator(keras.utils.Sequence):
         """ Compute inputs for the network using an image_group.
         """
         # get the max image shape
-        max_shape = tuple(max(image.shape[x] for image in image_group) for x in range(2))
+        max_shape = tuple(max(image.shape[x] for image in image_group) for x in range(3))
 
         # construct an image batch object
         image_batch = np.zeros((self.batch_size,) + max_shape, dtype=keras.backend.floatx())
 
         # copy all images to the upper left part of the image batch object
         for image_index, image in enumerate(image_group):
-            image_batch[image_index, :image.shape[0], :image.shape[1]] = image
+            image_batch[image_index, :image.shape[0], :image.shape[1], :image.shape[2]] = image
 
         if keras.backend.image_data_format() == 'channels_first':
             image_batch = image_batch.transpose((0, 3, 1, 2))
