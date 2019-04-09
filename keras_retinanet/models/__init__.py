@@ -59,7 +59,7 @@ def backbone(backbone_name):
     return b(backbone_name)
 
 
-def load_model(filepath, backbone_name='resnet50', convert=False, nms=True, class_specific_filter=True, anchor_params=None,nms_threshold=None):
+def load_model(filepath, backbone_name='resnet50', convert=False, nms=True, class_specific_filter=True, anchor_params=None,nms_threshold=None, input_channels=3):
     """ Loads a retinanet model using the correct custom objects.
 
     # Arguments
