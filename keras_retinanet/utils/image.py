@@ -175,5 +175,5 @@ def resize_image(img, min_side=400, max_side=1333):
 
     # resize the image with the computed scale
     img = cv2.resize(img, None, fx=scale, fy=scale)
-
+    
     return img, scale

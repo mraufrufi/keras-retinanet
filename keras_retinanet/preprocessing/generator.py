@@ -177,7 +177,7 @@ class Generator(keras.utils.Sequence):
         """
         # preprocess the image
         image = self.preprocess_image(image)
-
+        
         # randomly transform image and annotations
         #image, annotations = self.random_transform_group_entry(image, annotations)
 
@@ -205,6 +205,7 @@ class Generator(keras.utils.Sequence):
     def group_images(self):
         """ Order the images according to self.order and makes groups of self.batch_size.
         """
+        order = list(range(self.size()))        
 
         order = list(range(self.size()))
 
@@ -239,7 +240,7 @@ class Generator(keras.utils.Sequence):
         """ Compute target outputs for the network using images and their annotations.
         """
         # get the max image shape
-        max_shape = tuple(max(image.shape[x] for image in image_group) for x in range(3))
+        max_shape = tuple(max(image.shape[x] for image in image_group) for x in range(2))
         anchors   = self.generate_anchors(max_shape)
 
         labels_batch, regression_batch, _ = self.compute_anchor_targets(
@@ -276,8 +277,6 @@ class Generator(keras.utils.Sequence):
         """
         Keras sequence method for generating batches
         """
-        #print("index is %d" %(index))
         group = self.groups[index]        
-        #'{}'.format(group)
-        inputs,targets=self.compute_input_output(group)
-        return inputs,targets
+        inputs,targets = self.compute_input_output(group)
+        return inputs, targets
