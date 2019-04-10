@@ -15,7 +15,7 @@ limitations under the License.
 """
 
 import keras
-from ..utils.evalmAP import evaluate
+from ..utils.eval import evaluate
 import os
 
 class Evaluate(keras.callbacks.Callback):
